@@ -13,6 +13,16 @@ npm run dev
 
 Open the local URL printed by Vite (usually `http://localhost:5173`). No account, database, or backend is needed. Build with `npm run build`, run tests with `npm test`, lint with `npm run lint`, and format with `npm run format`. On Windows PowerShell with script execution disabled, use `npm.cmd` in place of `npm`.
 
+## Use from anywhere
+
+The project is a static web app and can be hosted without a server or database. To publish it on GitHub Pages:
+
+1. In the GitHub repository, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**.
+2. Push to the `main` branch. The deployment workflow builds and publishes the app automatically.
+3. Open <https://curentleaf.github.io/adaptive-visualization-recommender/>.
+
+For another static host, run `npm run build` and publish the contents of `dist/` at the host's site root. Local browser evaluation records remain in that browser's `localStorage`; the app does not send them to a server. GitHub Pages access and visibility depend on the repository's plan and organization settings.
+
 ## Cedar Watch exercise
 
 The deterministic synthetic generator creates narrative observation reports for five scenario templates:
