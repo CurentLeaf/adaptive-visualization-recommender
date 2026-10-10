@@ -222,6 +222,165 @@
   font-size: 12px;
 }
 
+.controls > section + section,
+.controls > details {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.module-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.module-heading h2 {
+  margin: 0;
+}
+
+.module-heading p {
+  color: #64748b;
+  font-size: 0.74rem;
+  margin: 4px 0 0;
+}
+
+.module-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e8f1f9;
+  color: #315f9d;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.filter-module {
+  min-width: 0;
+}
+
+.slice-actions {
+  display: grid;
+  gap: 5px;
+}
+
+.slice-actions .button {
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 31px;
+}
+
+.unavailable-slices {
+  border-left: 3px solid #c27608;
+  margin: 8px 0;
+  padding: 2px 8px;
+}
+
+.unavailable-slices p,
+.metadata-caveat {
+  margin: 4px 0;
+  color: #704a0b;
+}
+
+.recommendation-summary .section-title {
+  align-items: flex-start;
+}
+
+.recommendation-summary .module-heading {
+  flex: 1;
+}
+
+.recommendation-preview {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: 72px;
+  margin: 8px 0;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.rec-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rec-actions {
+  flex-wrap: wrap;
+}
+
+.rec-actions .button {
+  flex: 1 1 140px;
+}
+
+.rec-feedback {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.rec-feedback .field {
+  margin: 5px 0;
+}
+
+.rec-feedback select {
+  width: 100%;
+  border: 1px solid #cad5e1;
+  border-radius: 7px;
+  background: #fff;
+  padding: 7px;
+}
+
+.rec-feedback [aria-pressed='true'] {
+  background: #e8f1f9;
+  border-color: #315f9d;
+}
+
+.recent-useful,
+.why-not {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.recent-useful > summary,
+.why-not > summary {
+  color: #31557d;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.recent-useful li,
+.why-not li {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  margin: 5px 0;
+}
+
+.chart-panel {
+  scroll-margin-top: 16px;
+}
+
+@media (max-width: 780px) {
+  .recommendation-summary .section-title {
+    display: block;
+  }
+
+  .recommendation-summary .section-title > .pill {
+    display: inline-block;
+    margin-top: 8px;
+  }
+}
+
 .timeline-row {
   cursor: pointer;
 }

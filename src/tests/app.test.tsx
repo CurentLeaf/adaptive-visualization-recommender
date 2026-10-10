@@ -31,6 +31,53 @@ describe('audience presentation state', () => {
     ).not.toHaveAttribute('open');
   });
 
+  it('presents the three workflow modules and records contextual recommendation feedback locally', () => {
+    render(<App />);
+
+    expect(screen.getByRole('heading', { name: 'Task & Context' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Data & Filters' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Recommendations & Rationale' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('MDMP task preset')).toHaveValue('compare_reports');
+    expect(
+      screen.getByRole('option', { name: /Compare COAs.*unavailable in this dataset/ }),
+    ).toBeDisabled();
+    expect(screen.getByText(/no COA identifiers, outcome measures/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Useful' })[0]);
+    expect(screen.getByRole('status')).toHaveTextContent('Feedback saved locally: useful');
+    const saved = JSON.parse(localStorage.getItem('avr-recommendation-feedback-v1') ?? '[]');
+    expect(saved[0]).toMatchObject({
+      analyticTask: 'compare_categories',
+      audienceMode: 'Commander',
+      context: {
+        mdmpPhase: 'mission_analysis',
+        echelon: 'battalion',
+        timeHorizon: '24_hours',
+        variableClass: 'enemy',
+      },
+      decision: 'useful',
+      dataCharacteristics: {
+        uncertaintyFields: expect.arrayContaining(['source_confidence', 'validation_score']),
+        rowCount: 4,
+        fieldCount: expect.any(Number),
+      },
+    });
+  });
+
+  it('persists mission context between app visits in this browser', () => {
+    const { unmount } = render(<App />);
+    fireEvent.change(screen.getByLabelText('Echelon'), { target: { value: 'brigade' } });
+    expect(JSON.parse(localStorage.getItem('avr-mission-context-v1') ?? '{}').echelon).toBe(
+      'brigade',
+    );
+    unmount();
+
+    render(<App />);
+    expect(screen.getByLabelText('Echelon')).toHaveValue('brigade');
+  });
+
   it('preserves filters, selected report, task, weights, and evaluation progress when switching modes', async () => {
     const { container, unmount } = render(<App />);
     const report = dataset.reports.find((row) => row.report_id === 'REP-CORROBORATION-001')!;
@@ -72,6 +119,14 @@ describe('audience presentation state', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Submit response' }));
     expect(await screen.findByText(/1 completed/)).toBeInTheDocument();
+    expect(
+      JSON.parse(localStorage.getItem('avr-evaluations-v2') ?? '[]')[0].missionContext,
+    ).toEqual(
+      expect.objectContaining({
+        mdmpPhase: 'mission_analysis',
+        echelon: 'battalion',
+      }),
+    );
 
     fireEvent.change(screen.getByLabelText(/Audience/), { target: { value: 'Analyst' } });
     expect(screen.getByLabelText('Fictional location')).toHaveValue(report.region);

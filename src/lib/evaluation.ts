@@ -1,10 +1,7 @@
 import { z } from 'zod';
 import { SCENARIOS } from '../domain/constants';
-import type {
-  AudienceMode,
-  EvaluationRecord,
-  ScenarioId,
-} from '../domain/types';
+import { missionContextSchema } from '../domain/mdmp';
+import type { AudienceMode, EvaluationRecord, ScenarioId } from '../domain/types';
 const filtersSchema = z.object({
   start: z.string(),
   end: z.string(),
@@ -46,6 +43,7 @@ const recordSchema = legacyRecordSchema.extend({
   schemaVersion: z.literal(2),
   questionId: z.string(),
   audienceMode: z.enum(['Commander', 'Analyst']),
+  missionContext: missionContextSchema.optional(),
 });
 const KEY = 'avr-evaluations-v2';
 const LEGACY_KEY = 'avr-evaluations-v1';

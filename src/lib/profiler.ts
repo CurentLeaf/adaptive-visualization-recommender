@@ -1,5 +1,15 @@
 import type { DataProfile, FieldProfile, Report } from '../domain/types';
-const uncertainty = ['source_confidence', 'validation_score', 'corroboration_count', 'conflict_score', 'report_age_hours', 'missingness_score', 'anomaly_score', 'translation_status', 'human_verified'];
+const uncertainty = [
+  'source_confidence',
+  'validation_score',
+  'corroboration_count',
+  'conflict_score',
+  'report_age_hours',
+  'missingness_score',
+  'anomaly_score',
+  'translation_status',
+  'human_verified',
+];
 const provenance = [
   'report_id',
   'source_id',
@@ -9,6 +19,7 @@ const provenance = [
   'translation_status',
   'human_verified',
 ];
+const spatial = new Set(['grid_x', 'grid_y', 'latitude', 'longitude']);
 export function profileReports(rows: Report[]): DataProfile {
   const names = rows.length ? Object.keys(rows[0]) : [];
   const fields: FieldProfile[] = names.map((name) => {
@@ -26,10 +37,51 @@ export function profileReports(rows: Report[]): DataProfile {
             : name.includes('summary') || name.includes('description')
               ? 'text'
               : 'nominal';
-    const sortable = present.filter((v): v is number | string => typeof v === 'number' || typeof v === 'string').sort((a, b) => typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b)));
-    return { name, inferredType, nullableCount: rows.length - present.length, missingRate: rows.length ? (rows.length - present.length) / rows.length : 0, uniqueCount: new Set(present.map((v) => JSON.stringify(v))).size, min: sortable[0], max: sortable.at(-1), exampleValues: [...new Set(present.map((v) => JSON.stringify(v)))].slice(0, 3).map((v) => JSON.parse(v)) };
+    const sortable = present
+      .filter((v): v is number | string => typeof v === 'number' || typeof v === 'string')
+      .sort((a, b) =>
+        typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b)),
+      );
+    const isUncertainty = uncertainty.includes(name);
+    const isProvenance = provenance.includes(name);
+    const scaleType: FieldProfile['scaleType'] = spatial.has(name)
+      ? 'spatial'
+      : inferredType === 'temporal'
+        ? 'temporal'
+        : inferredType === 'quantitative'
+          ? 'continuous'
+          : inferredType === 'id'
+            ? 'identifier'
+            : inferredType === 'text'
+              ? 'text'
+              : 'categorical';
+    const analyticRole: FieldProfile['analyticRole'] =
+      scaleType === 'identifier'
+        ? 'identifier'
+        : scaleType === 'text'
+          ? 'narrative'
+          : scaleType === 'continuous' || isUncertainty
+            ? 'measure'
+            : 'dimension';
+    return {
+      name,
+      inferredType,
+      analyticRole,
+      scaleType,
+      isUncertainty,
+      isProvenance,
+      nullableCount: rows.length - present.length,
+      missingRate: rows.length ? (rows.length - present.length) / rows.length : 0,
+      uniqueCount: new Set(present.map((v) => JSON.stringify(v))).size,
+      min: sortable[0],
+      max: sortable.at(-1),
+      exampleValues: [...new Set(present.map((v) => JSON.stringify(v)))]
+        .slice(0, 3)
+        .map((v) => JSON.parse(v)),
+    };
   });
-  const ofType = (type: FieldProfile['inferredType']) => fields.filter((f) => f.inferredType === type).map((f) => f.name);
+  const ofType = (type: FieldProfile['inferredType']) =>
+    fields.filter((f) => f.inferredType === type).map((f) => f.name);
   return {
     rowCount: rows.length,
     fields,

@@ -7,12 +7,30 @@ export type AnalyticTask =
   | 'explore_provenance';
 export type ScenarioId = 'corroboration' | 'uncertain' | 'conflict' | 'anomaly' | 'quality';
 export type AudienceMode = 'Commander' | 'Analyst';
+export type MdmpPhase =
+  'mission_analysis' | 'coa_development' | 'coa_analysis' | 'coa_comparison' | 'orders_production';
+export type Echelon = 'battalion' | 'brigade' | 'division';
+export type TimeHorizon = 'current' | '24_hours' | '72_hours' | 'one_week';
+export type VariableClass = 'friendly' | 'enemy' | 'terrain' | 'civil_considerations' | 'mixed';
+export type MissionContext = {
+  mdmpPhase: MdmpPhase;
+  echelon: Echelon;
+  timeHorizon: TimeHorizon;
+  variableClass: VariableClass;
+};
+export type MdmpTaskPresetId =
+  | 'compare_reports'
+  | 'trend_over_time'
+  | 'spatial_pattern'
+  | 'compare_coas'
+  | 'assess_risk'
+  | 'enemy_composition'
+  | 'isr_confidence'
+  | 'source_disagreement'
+  | 'trace_provenance';
 export type TranslationStatus = 'original' | 'machine' | 'reviewed';
 export type CountPrecision = 'exact_as_reported' | 'approximate' | 'range' | 'unknown';
-export type AttributionStatus =
-  | 'identified_by_source'
-  | 'suspected_by_source'
-  | 'unknown';
+export type AttributionStatus = 'identified_by_source' | 'suspected_by_source' | 'unknown';
 export type ValidationStatus = 'reviewed' | 'partial' | 'pending' | 'not_recorded';
 export type Report = {
   report_id: string;
@@ -137,6 +155,10 @@ export type FieldProfile = {
   name: string;
   inferredType:
     'id' | 'temporal' | 'quantitative' | 'nominal' | 'ordinal' | 'boolean' | 'geographic' | 'text';
+  analyticRole: 'measure' | 'dimension' | 'identifier' | 'narrative';
+  scaleType: 'continuous' | 'categorical' | 'temporal' | 'spatial' | 'identifier' | 'text';
+  isUncertainty: boolean;
+  isProvenance: boolean;
   nullableCount: number;
   missingRate: number;
   uniqueCount: number;
@@ -254,6 +276,31 @@ export type VisualizationRecommendation = {
   interactions: string[];
   vegaLiteSpec: Record<string, unknown>;
 };
+export type ExcludedVisualization = {
+  title: string;
+  reason: string;
+};
+export type RecommendationFeedback = {
+  recommendationId: string;
+  title: string;
+  chartPattern: ChartPattern;
+  analyticTask: AnalyticTask;
+  audienceMode: AudienceMode;
+  context: MissionContext;
+  filteredRowCount: number;
+  dataCharacteristics: {
+    rowCount: number;
+    fieldCount: number;
+    fieldsWithMissingValues: string[];
+    uncertaintyFields: string[];
+    temporalFields: string[];
+    quantitativeFields: string[];
+    categoricalFields: string[];
+  };
+  decision: 'useful' | 'not_useful';
+  reason: string;
+  timestamp: string;
+};
 export type Filters = {
   start: string;
   end: string;
@@ -274,6 +321,7 @@ export type EvaluationRecord = {
   questionId: string;
   audienceMode: AudienceMode;
   analyticTask: AnalyticTask;
+  missionContext?: MissionContext;
   chartSelected: string;
   filters: Filters;
   visualInteractions: InteractionEvent[];

@@ -23,14 +23,32 @@ import { ProfilePanel } from '../components/dashboard/ProfilePanel';
 import { EvidencePanel } from '../components/details/EvidencePanel';
 import { dataset } from '../data/seedData';
 import { DATA_LABEL, DEFAULT_WEIGHTS, SCENARIOS, TASKS } from '../domain/constants';
+import {
+  DEFAULT_MISSION_CONTEXT,
+  ECHELONS,
+  MDMP_PHASES,
+  MDMP_TASK_PRESETS,
+  TIME_HORIZONS,
+  VARIABLE_CLASSES,
+  loadMissionContext,
+  presetForAnalyticTask,
+} from '../domain/mdmp';
 import type {
   AnalyticTask,
   AudienceMode,
+  Echelon,
   EvaluationRecord,
   Filters,
   InteractionEvent,
+  MdmpPhase,
+  MdmpTaskPresetId,
+  MissionContext,
+  RecommendationFeedback,
   SalienceWeights,
   ScenarioId,
+  TimeHorizon,
+  VariableClass,
+  VisualizationRecommendation,
 } from '../domain/types';
 import {
   answerOptions,
@@ -46,8 +64,14 @@ import { recommendModels } from '../lib/modelSelection';
 import { profileReports } from '../lib/profiler';
 import { scoreSalience } from '../lib/salience';
 import { createBaselineSpec, createVegaSpec } from '../lib/vegaSpecFactory';
-import { recommendVisualizations } from '../lib/visualizationRecommendations';
+import { recommend } from '../lib/recommendationEngine';
+import {
+  loadRecommendationFeedback,
+  recentUsefulRecommendations,
+  saveRecommendationFeedback,
+} from '../lib/recommendationFeedback';
 import { buildSituationSummary } from '../lib/situationNarrative';
+import { RecommendationCard } from '../components/dashboard/RecommendationCard';
 
 const emptyFilters: Filters = {
   start: '',
@@ -72,12 +96,38 @@ function downloadJson(name: string, object: unknown) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function downloadSvgSnapshot(svg: SVGSVGElement, title: string, description: string) {
+  const copy = svg.cloneNode(true) as SVGSVGElement;
+  copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  copy.setAttribute('role', 'img');
+  const titleNode = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+  titleNode.textContent = title;
+  const descriptionNode = document.createElementNS('http://www.w3.org/2000/svg', 'desc');
+  descriptionNode.textContent = description;
+  copy.prepend(descriptionNode);
+  copy.prepend(titleNode);
+  const blob = new Blob([new XMLSerializer().serializeToString(copy)], {
+    type: 'image/svg+xml;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-brief.svg`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 const sourceMap = new Map(dataset.sources.map((s) => [s.source_id, s]));
 const modelMap = new Map(dataset.model_outputs.map((m) => [m.report_id, m]));
 const provenanceMap = new Map(dataset.provenance.map((p) => [p.report_id, p]));
 const locationsMap = new Map(dataset.locations.map((location) => [location.location_id, location]));
 const scenarioIds = Object.keys(SCENARIOS) as ScenarioId[];
 const taskIds = Object.keys(TASKS) as AnalyticTask[];
+const presetMap = new Map(MDMP_TASK_PRESETS.map((preset) => [preset.id, preset]));
+const initialPreset = presetForAnalyticTask(SCENARIOS.corroboration.task);
+const mdmpPhaseIds = Object.keys(MDMP_PHASES) as MdmpPhase[];
+const echelonIds = Object.keys(ECHELONS) as Echelon[];
+const timeHorizonIds = Object.keys(TIME_HORIZONS) as TimeHorizon[];
+const variableClassIds = Object.keys(VARIABLE_CLASSES) as VariableClass[];
 function Select({
   label,
   value,
@@ -86,7 +136,7 @@ function Select({
 }: {
   label: string;
   value: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; disabled?: boolean }[];
   onChange: (value: string) => void;
 }) {
   return (
@@ -94,7 +144,7 @@ function Select({
       <span>{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}
@@ -113,6 +163,8 @@ export default function App() {
   );
   const [scenario, setScenario] = useState<ScenarioId>('corroboration');
   const [task, setTask] = useState<AnalyticTask>(SCENARIOS.corroboration.task);
+  const [taskPreset, setTaskPreset] = useState<MdmpTaskPresetId>(initialPreset);
+  const [missionContext, setMissionContext] = useState<MissionContext>(loadMissionContext);
   const [weights, setWeights] = useState<SalienceWeights>(DEFAULT_WEIGHTS);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [selectedId, setSelectedId] = useState('');
@@ -131,11 +183,19 @@ export default function App() {
   const [userConfidence, setUserConfidence] = useState(3);
   const [feedback, setFeedback] = useState('');
   const [logs, setLogs] = useState<EvaluationRecord[]>(() => loadEvaluations());
+  const [recommendationFeedback, setRecommendationFeedback] = useState<RecommendationFeedback[]>(
+    () => loadRecommendationFeedback(),
+  );
+  const [feedbackReason, setFeedbackReason] = useState('Fits the task');
+  const [feedbackStatus, setFeedbackStatus] = useState('');
   const [interactions, setInteractions] = useState<InteractionEvent[]>([]);
   const startTime = useRef(Date.now());
   useEffect(() => {
     localStorage.setItem('avr-audience-v1', audience);
   }, [audience]);
+  useEffect(() => {
+    localStorage.setItem('avr-mission-context-v1', JSON.stringify(missionContext));
+  }, [missionContext]);
   const track = useCallback(
     (type: string, value: string) =>
       setInteractions((old) => [...old, { type, value, timestamp: new Date().toISOString() }]),
@@ -144,6 +204,11 @@ export default function App() {
   const updateFilter = (key: keyof Filters, value: string | number) => {
     setFilters((old) => ({ ...old, [key]: value }));
     track('filter', `${key}:${value}`);
+  };
+  const applyQuickSlice = (label: string, nextFilters: Filters) => {
+    setFilters(nextFilters);
+    setParallelRanges(createDefaultParallelRanges());
+    track('filter_slice', label);
   };
   const profile = useMemo(
     () => profileReports(dataset.reports.filter((r) => r.scenario_id === scenario)),
@@ -201,10 +266,21 @@ export default function App() {
     [rows, weights, analysis, selectedId],
   );
   const models = useMemo(() => recommendModels(profile, task), [profile, task]);
-  const recommendations = useMemo(
-    () => recommendVisualizations(profile, task, models[0], weights, chartData, audience),
-    [profile, task, models, weights, chartData, audience],
+  const recommendationResult = useMemo(
+    () =>
+      recommend({
+        profile,
+        task,
+        modeling: models[0],
+        weights,
+        data: chartData,
+        audience,
+        context: missionContext,
+      }),
+    [profile, task, models, weights, chartData, audience, missionContext],
   );
+  const recommendations = recommendationResult.ranked;
+  const excludedRecommendations = recommendationResult.excluded;
   const selectedChart = recommendations.find((r) => r.id === chartId) ?? recommendations[0];
   useEffect(() => {
     if (!chartId && recommendations[0]) setChartId(recommendations[0].id);
@@ -222,6 +298,7 @@ export default function App() {
     const id = value as ScenarioId;
     setScenario(id);
     setTask(SCENARIOS[id].task);
+    setTaskPreset(presetForAnalyticTask(SCENARIOS[id].task));
     setFilters(emptyFilters);
     setParallelRanges(createDefaultParallelRanges());
     setSelectedId('');
@@ -236,6 +313,8 @@ export default function App() {
   const reset = () => {
     setScenario('corroboration');
     setTask('compare_categories');
+    setTaskPreset(initialPreset);
+    setMissionContext(DEFAULT_MISSION_CONTEXT);
     setWeights(DEFAULT_WEIGHTS);
     setFilters(emptyFilters);
     setParallelRanges(createDefaultParallelRanges());
@@ -286,6 +365,89 @@ export default function App() {
     if (!selectedId && rows[0]) selectReport(rows[0].report_id);
     setShowEvidence(true);
   };
+  const selectTaskPreset = (value: string) => {
+    const preset = presetMap.get(value as MdmpTaskPresetId);
+    if (!preset?.analyticTask) return;
+    setTaskPreset(preset.id);
+    setTask(preset.analyticTask);
+    setMissionContext((old) => ({ ...old, mdmpPhase: preset.phase }));
+    setChartId('');
+    track('mdmp_task_preset', preset.id);
+  };
+  const openRecommendation = (recommendation: VisualizationRecommendation) => {
+    setChartId(recommendation.id);
+    setShowDetailed(true);
+    track('open_recommendation', recommendation.id);
+    const analysisView = document.getElementById('analysis-view');
+    if (analysisView && typeof analysisView.scrollIntoView === 'function') {
+      analysisView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+  const snapshotRecommendation = (recommendation: VisualizationRecommendation) => {
+    const svg = document.querySelector('#analysis-view .chart svg, #analysis-view .parallel-svg');
+    if (!(svg instanceof SVGSVGElement)) {
+      setFeedbackStatus('The selected chart is not ready to export yet.');
+      return;
+    }
+    downloadSvgSnapshot(
+      svg,
+      recommendation.title,
+      `${recommendation.rationale.join(' ')} ${recommendation.doesNotEstablish} ${DATA_LABEL}`,
+    );
+    track('snapshot_for_brief', recommendation.id);
+    setFeedbackStatus(
+      'Chart snapshot downloaded as an accessible SVG with rationale and cautions.',
+    );
+  };
+  const duplicateRecommendation = (recommendation: VisualizationRecommendation) => {
+    downloadJson(
+      `${recommendation.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-working-copy.json`,
+      {
+        title: `${recommendation.title} — working copy`,
+        recommendation,
+        analyticTask: task,
+        missionContext,
+        audienceMode: audience,
+        filters,
+        createdAt: new Date().toISOString(),
+      },
+    );
+    track('duplicate_recommendation', recommendation.id);
+    setFeedbackStatus(
+      'Working-copy configuration downloaded. Its chart, rationale, audience, context, and filters are included.',
+    );
+  };
+  const recordRecommendationFeedback = (
+    recommendation: VisualizationRecommendation,
+    decision: 'useful' | 'not_useful',
+  ) => {
+    const record: RecommendationFeedback = {
+      recommendationId: recommendation.id,
+      title: recommendation.title,
+      chartPattern: recommendation.chartPattern,
+      analyticTask: task,
+      audienceMode: audience,
+      context: missionContext,
+      filteredRowCount: rows.length,
+      dataCharacteristics: {
+        rowCount: profile.rowCount,
+        fieldCount: profile.fields.length,
+        fieldsWithMissingValues: profile.fields
+          .filter((field) => field.nullableCount > 0)
+          .map((field) => field.name),
+        uncertaintyFields: profile.uncertaintyFields,
+        temporalFields: profile.temporalFields,
+        quantitativeFields: profile.numericFields,
+        categoricalFields: profile.categoricalFields,
+      },
+      decision,
+      reason: feedbackReason,
+      timestamp: new Date().toISOString(),
+    };
+    setRecommendationFeedback(saveRecommendationFeedback(record));
+    setFeedbackStatus(`Feedback saved locally: ${decision.replace('_', ' ')} · ${feedbackReason}.`);
+    track('recommendation_feedback', `${decision}:${recommendation.id}:${feedbackReason}`);
+  };
   const brush = useCallback(
     (start: string, end: string) => {
       setFilters((old) => ({ ...old, start, end }));
@@ -300,6 +462,7 @@ export default function App() {
       sessionId,
       scenarioId: scenario,
       analyticTask: task,
+      missionContext,
       chartSelected: selectedChart?.id ?? '',
       schemaVersion: 2,
       questionId: `${scenario}-question-v1`,
@@ -375,6 +538,227 @@ export default function App() {
       </header>
       <div className="layout">
         <aside className="panel controls">
+          <section aria-labelledby="task-context-heading">
+            <div className="module-heading">
+              <span className="module-number">1</span>
+              <div>
+                <h2 id="task-context-heading">Task &amp; Context</h2>
+                <p>Frame the question for an MDMP phase and audience.</p>
+              </div>
+            </div>
+            <Select
+              label="MDMP task preset"
+              value={taskPreset}
+              options={MDMP_TASK_PRESETS.map((preset) => ({
+                value: preset.id,
+                label: preset.analyticTask
+                  ? preset.label
+                  : `${preset.label} — unavailable in this dataset`,
+                disabled: !preset.analyticTask,
+              }))}
+              onChange={selectTaskPreset}
+            />
+            <p className="help">{presetMap.get(taskPreset)?.description}</p>
+            <p className="metadata-caveat" role="note">
+              Not available yet: no COA identifiers, outcome measures, or COA uncertainty; no
+              operational risk measures; no structured enemy order-of-battle fields; and no spatial
+              recommender rule.
+            </p>
+            {presetMap.get(taskPreset)?.requirement && (
+              <p className="metadata-caveat" role="note">
+                Not recommended: {presetMap.get(taskPreset)?.requirement}
+              </p>
+            )}
+            <Select
+              label="MDMP phase"
+              value={missionContext.mdmpPhase}
+              options={mdmpPhaseIds.map((id) => ({ value: id, label: MDMP_PHASES[id] }))}
+              onChange={(value) =>
+                setMissionContext((old) => ({ ...old, mdmpPhase: value as MdmpPhase }))
+              }
+            />
+            <Select
+              label="Echelon"
+              value={missionContext.echelon}
+              options={echelonIds.map((id) => ({ value: id, label: ECHELONS[id] }))}
+              onChange={(value) =>
+                setMissionContext((old) => ({ ...old, echelon: value as Echelon }))
+              }
+            />
+            <Select
+              label="Time horizon"
+              value={missionContext.timeHorizon}
+              options={timeHorizonIds.map((id) => ({ value: id, label: TIME_HORIZONS[id] }))}
+              onChange={(value) =>
+                setMissionContext((old) => ({ ...old, timeHorizon: value as TimeHorizon }))
+              }
+            />
+            <Select
+              label="Variable class"
+              value={missionContext.variableClass}
+              options={variableClassIds.map((id) => ({ value: id, label: VARIABLE_CLASSES[id] }))}
+              onChange={(value) =>
+                setMissionContext((old) => ({ ...old, variableClass: value as VariableClass }))
+              }
+            />
+            <p className="help">
+              Intended audience: <strong>{audience} view</strong>. Context frames this fictional
+              exercise; it does not create missing operational data.
+            </p>
+          </section>
+          <section className="filter-module" aria-labelledby="data-filters-heading">
+            <div className="module-heading">
+              <span className="module-number">2</span>
+              <div>
+                <h2 id="data-filters-heading">Data &amp; Filters</h2>
+                <p>
+                  {rows.length} of {profile.rowCount} scenario reports in view.
+                </p>
+              </div>
+            </div>
+            <p className="help">Common evidence slices</p>
+            <div className="slice-actions">
+              <button
+                className="button ghost"
+                type="button"
+                onClick={() => applyQuickSlice('all scenario reports', emptyFilters)}
+              >
+                All scenario reports
+              </button>
+              <button
+                className="button ghost"
+                type="button"
+                onClick={() =>
+                  applyQuickSlice('elevated disagreement', {
+                    ...emptyFilters,
+                    minConflict: 0.5,
+                  })
+                }
+              >
+                Elevated disagreement
+              </button>
+              <button
+                className="button ghost"
+                type="button"
+                onClick={() =>
+                  applyQuickSlice('verification not recorded', {
+                    ...emptyFilters,
+                    verified: 'false',
+                  })
+                }
+              >
+                Verification not recorded
+              </button>
+              <button
+                className="button ghost"
+                type="button"
+                onClick={() =>
+                  applyQuickSlice('machine-translated reports', {
+                    ...emptyFilters,
+                    translation: 'machine',
+                  })
+                }
+              >
+                Machine-translated reports
+              </button>
+            </div>
+            <div className="unavailable-slices">
+              <p className="help">
+                Not available for this dataset: COA 1 vs COA 2 at D+2 (no COA/time outcome fields);
+                high-risk areas by terrain (no risk or terrain measures).
+              </p>
+            </div>
+            <div className="button-row">
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setShowProfile((old) => !old)}
+              >
+                <Database size={16} /> {showProfile ? 'Hide' : 'Show'} field metadata
+              </button>
+              <button
+                className="button ghost"
+                type="button"
+                onClick={() => {
+                  setFilters(emptyFilters);
+                  setParallelRanges(createDefaultParallelRanges());
+                  track('reset_filters', 'all');
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <div className="two-fields">
+              <label className="field">
+                <span>Observed from</span>
+                <input
+                  type="date"
+                  value={filters.start}
+                  onChange={(event) => updateFilter('start', event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Observed through</span>
+                <input
+                  type="date"
+                  value={filters.end}
+                  onChange={(event) => updateFilter('end', event.target.value)}
+                />
+              </label>
+            </div>
+            <Select
+              label="Fictional location"
+              value={filters.region}
+              options={allOption([...new Set(dataset.reports.map((r) => r.region))])}
+              onChange={(value) => updateFilter('region', value)}
+            />
+            <Select
+              label="Observation type"
+              value={filters.category}
+              options={allOption([...new Set(dataset.reports.map((r) => r.event_category))])}
+              onChange={(value) => updateFilter('category', value)}
+            />
+            <Select
+              label="Source type"
+              value={filters.sourceType}
+              options={allOption([...new Set(dataset.sources.map((s) => s.source_type))])}
+              onChange={(value) => updateFilter('sourceType', value)}
+            />
+            {range('minConfidence', 'Source confidence')}
+            {range('minValidation', 'Validation score')}
+            {range('minConflict', 'Conflict score')}
+            <Select
+              label="Translation"
+              value={filters.translation}
+              options={[
+                { value: '', label: 'All' },
+                { value: 'original', label: 'Original exercise-language report' },
+                { value: 'machine', label: 'Machine translated' },
+                { value: 'reviewed', label: 'Translation reviewed' },
+              ]}
+              onChange={(value) => updateFilter('translation', value)}
+            />
+            <Select
+              label="Human verification"
+              value={filters.verified}
+              options={[
+                { value: '', label: 'All' },
+                { value: 'true', label: 'Recorded' },
+                { value: 'false', label: 'Not recorded' },
+              ]}
+              onChange={(value) => updateFilter('verified', value)}
+            />
+            <button
+              className="button primary full"
+              type="button"
+              onClick={() => {
+                setChartId('');
+                track('generate_recommendations', task);
+              }}
+            >
+              Refresh recommendations
+            </button>
+          </section>
           <details open={audience === 'Analyst'}>
             <summary>
               <SlidersHorizontal size={18} />{' '}
@@ -382,22 +766,21 @@ export default function App() {
             </summary>
             <div className="controls-content">
               <p className="muted">{SCENARIOS[scenario].description}</p>
-              <button
-                className="button secondary full"
-                onClick={() => setShowProfile((old) => !old)}
-              >
-                <Database size={16} /> {showProfile ? 'Hide' : 'Show'} dataset profile
-              </button>
               <Select
                 label="Analytic task"
                 value={task}
                 options={taskIds.map((id) => ({ value: id, label: TASKS[id].label }))}
                 onChange={(value) => {
                   setTask(value as AnalyticTask);
+                  setTaskPreset(presetForAnalyticTask(value as AnalyticTask));
                   setChartId('');
                   track('task', value);
                 }}
               />
+              <p className="help">
+                Advanced analytic tasks provide lower-level rule selection; the MDMP preset remains
+                the user-facing question.
+              </p>
               <p className="help">{TASKS[task].description}</p>
               <h3>Salience weights</h3>
               <p className="help">
@@ -423,86 +806,6 @@ export default function App() {
                   />
                 </label>
               ))}
-              <h3>Filters</h3>
-              <div className="two-fields">
-                <label className="field">
-                  <span>Observed from</span>
-                  <input
-                    type="date"
-                    value={filters.start}
-                    onChange={(event) => updateFilter('start', event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Observed through</span>
-                  <input
-                    type="date"
-                    value={filters.end}
-                    onChange={(event) => updateFilter('end', event.target.value)}
-                  />
-                </label>
-              </div>
-              <Select
-                label="Fictional location"
-                value={filters.region}
-                options={allOption([...new Set(dataset.reports.map((r) => r.region))])}
-                onChange={(v) => updateFilter('region', v)}
-              />
-              <Select
-                label="Observation type"
-                value={filters.category}
-                options={allOption([...new Set(dataset.reports.map((r) => r.event_category))])}
-                onChange={(v) => updateFilter('category', v)}
-              />
-              <Select
-                label="Source type"
-                value={filters.sourceType}
-                options={allOption([...new Set(dataset.sources.map((s) => s.source_type))])}
-                onChange={(v) => updateFilter('sourceType', v)}
-              />
-              {range('minConfidence', 'Source confidence')}
-              {range('minValidation', 'Validation score')}
-              {range('minConflict', 'Conflict score')}
-              <Select
-                label="Translation"
-                value={filters.translation}
-                options={[
-                  { value: '', label: 'All' },
-                  { value: 'original', label: 'Original exercise-language report' },
-                  { value: 'machine', label: 'Machine translated' },
-                  { value: 'reviewed', label: 'Translation reviewed' },
-                ]}
-                onChange={(v) => updateFilter('translation', v)}
-              />
-              <Select
-                label="Human verification"
-                value={filters.verified}
-                options={[
-                  { value: '', label: 'All' },
-                  { value: 'true', label: 'Recorded' },
-                  { value: 'false', label: 'Not recorded' },
-                ]}
-                onChange={(v) => updateFilter('verified', v)}
-              />
-              <button
-                className="button primary full"
-                onClick={() => {
-                  setChartId('');
-                  track('generate_recommendations', task);
-                }}
-              >
-                Generate recommendations
-              </button>
-              <button
-                className="button ghost full"
-                onClick={() => {
-                  setFilters(emptyFilters);
-                  setParallelRanges(createDefaultParallelRanges());
-                  track('reset_filters', 'all');
-                }}
-              >
-                Reset filters
-              </button>
             </div>
           </details>
         </aside>
@@ -574,7 +877,13 @@ export default function App() {
           )}
           <section className="panel recommendation-summary">
             <div className="section-title">
-              <h2>Recommended visualization</h2>
+              <div className="module-heading">
+                <span className="module-number">3</span>
+                <div>
+                  <h2>Recommendations &amp; Rationale</h2>
+                  <p>{recommendationResult.explanation}</p>
+                </div>
+              </div>
               <span className="pill">Rule-based heuristic</span>
             </div>
             {selectedChart ? (
@@ -679,73 +988,106 @@ export default function App() {
               </details>
             )}
           </section>
-          {(audience === 'Analyst' || showAlternatives) && (
-            <section className="panel">
-              <div className="section-title">
-                <h2>Ranked alternatives</h2>
-                <span className="pill">Active selection remains explicit</span>
-              </div>
-              <div className="recommendations">
-                {recommendations.map((rec) => (
-                  <article
-                    key={rec.id}
-                    className={`rec-card ${selectedChart?.id === rec.id ? 'active' : ''}`}
-                  >
-                    <div className="rec-top">
-                      <span>
-                        #{rec.rank} · {rec.title}
-                      </span>
-                      <strong>{rec.suitabilityScore}/100</strong>
-                    </div>
-                    <small>
-                      {rec.technique} · {rec.modelingTechnique}
-                    </small>
-                    {selectedChart?.id === rec.id && (
-                      <p>
-                        <strong>Currently active</strong>
-                      </p>
-                    )}
-                    <details>
-                      <summary>Inspect inputs, rationale, score, and limitations</summary>
-                      <p>{rec.rationale.join(' ')}</p>
-                      <p>
-                        <strong>Required:</strong> {rec.requiredInputFields.join(', ')}.{' '}
-                        <strong>Optional:</strong> {rec.optionalInputFields.join(', ') || 'None'}.
-                      </p>
-                      <p>
-                        <strong>Fields used:</strong> {rec.fieldsUsed.join(', ')}.{' '}
-                        <strong>Derived:</strong> {rec.derivedOutputFields.join(', ') || 'None'}.
-                      </p>
-                      <p>
-                        <strong>Score components:</strong>{' '}
-                        {Object.entries(rec.scoreBreakdown)
-                          .map(([key, value]) => `${key}: ${value}`)
-                          .join(' · ')}{' '}
-                        = {rec.suitabilityScore}.
-                      </p>
-                      <ul>
-                        {[...rec.assumptions, ...rec.cautions].map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </details>
-                    <button
-                      className="button secondary full"
-                      type="button"
-                      disabled={selectedChart?.id === rec.id}
-                      onClick={() => {
-                        setChartId(rec.id);
-                        track('choose_chart', rec.id);
-                      }}
-                    >
-                      Use this visualization
-                    </button>
-                  </article>
+          <section className="panel">
+            <div className="section-title">
+              <h2>Ranked options</h2>
+              <span className="pill">
+                {audience === 'Commander' ? 'Top 3' : 'Top 5'} · active chart stays explicit
+              </span>
+            </div>
+            <p className="help">
+              Recommendations are ranked for this question, available fields, uncertainty,
+              provenance, and audience. Suitability is not confidence or truth.
+            </p>
+            <div className="recommendations">
+              {recommendations
+                .slice(
+                  0,
+                  showAlternatives ? recommendations.length : audience === 'Commander' ? 3 : 5,
+                )
+                .map((recommendation) => (
+                  <RecommendationCard
+                    key={recommendation.id}
+                    recommendation={recommendation}
+                    active={selectedChart?.id === recommendation.id}
+                    snapshotDisabled={selectedChart?.id !== recommendation.id}
+                    feedbackReason={feedbackReason}
+                    lastDecision={
+                      recommendationFeedback
+                        .slice()
+                        .reverse()
+                        .find((entry) => entry.recommendationId === recommendation.id)?.decision
+                    }
+                    onFeedbackReasonChange={setFeedbackReason}
+                    onFeedback={(decision) =>
+                      recordRecommendationFeedback(recommendation, decision)
+                    }
+                    onOpen={() => openRecommendation(recommendation)}
+                    onSnapshot={() => snapshotRecommendation(recommendation)}
+                    onDuplicate={() => duplicateRecommendation(recommendation)}
+                  />
                 ))}
-              </div>
-            </section>
-          )}
-          <section className="panel chart-panel">
+            </div>
+            {recommendations.length > (audience === 'Commander' ? 3 : 5) && (
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => setShowAlternatives((value) => !value)}
+              >
+                {showAlternatives ? 'Show fewer options' : 'Show remaining alternatives'}
+              </button>
+            )}
+            {feedbackStatus && (
+              <p className="feedback" role="status">
+                {feedbackStatus}
+              </p>
+            )}
+            {recentUsefulRecommendations(recommendationFeedback).length > 0 && (
+              <details className="recent-useful">
+                <summary>Recent useful visualizations · saved on this browser</summary>
+                <ul>
+                  {recentUsefulRecommendations(recommendationFeedback).map((entry) => (
+                    <li key={`${entry.recommendationId}-${entry.timestamp}`}>
+                      {entry.title} · {TASKS[entry.analyticTask].label} · {entry.audienceMode} ·{' '}
+                      {entry.reason}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <details className="why-not">
+              <summary>Why not other visualization types?</summary>
+              <p className="help">
+                These alternatives are excluded by task fit or the available data; add the stated
+                fields before treating them as viable.
+              </p>
+              <ul>
+                <li>
+                  <strong>Pie chart:</strong> omitted for report comparisons because aligned
+                  positions support count comparison more accurately than angles, especially when
+                  sources disagree.
+                </li>
+                <li>
+                  <strong>3D chart:</strong> omitted because no task or field requires depth and the
+                  added perspective would make a brief harder to read.
+                </li>
+                <li>
+                  <strong>Choropleth:</strong> unavailable because the exercise contains fictional
+                  point coordinates, not validated area boundaries or polygon-level measures.
+                </li>
+                <li>
+                  <strong>Network graph:</strong> unavailable because the data has no structured
+                  relationship or dependency network suitable for a graph.
+                </li>
+                {excludedRecommendations.slice(0, 8).map((item) => (
+                  <li key={item.title}>
+                    <strong>{item.title}:</strong> {item.reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </section>
+          <section className="panel chart-panel" id="analysis-view">
             <div className="section-title">
               <div>
                 <h2>{selectedChart?.title ?? 'No compatible chart'}</h2>

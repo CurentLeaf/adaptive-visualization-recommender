@@ -3,6 +3,7 @@ import type {
   AudienceMode,
   ChartPattern,
   DataProfile,
+  ExcludedVisualization,
   ModelingRecommendation,
   SalienceWeights,
   SuitabilityBreakdown,
@@ -253,10 +254,8 @@ function taskFit(task: AnalyticTask, pattern: ChartPattern): number {
   if (task === 'analyze_trends') return ['line', 'table_detail'].includes(pattern) ? 22 : 16;
   if (task === 'examine_source_conflict')
     return ['dot_plot', 'table_detail'].includes(pattern) ? 22 : 16;
-  if (task === 'assess_confidence')
-    return ['error_bar', 'scatter'].includes(pattern) ? 22 : 16;
-  if (task === 'detect_anomalies')
-    return ['line', 'table_detail'].includes(pattern) ? 22 : 16;
+  if (task === 'assess_confidence') return ['error_bar', 'scatter'].includes(pattern) ? 22 : 16;
+  if (task === 'detect_anomalies') return ['line', 'table_detail'].includes(pattern) ? 22 : 16;
   if (task === 'explore_provenance')
     return ['observation_timeline', 'table_detail'].includes(pattern) ? 22 : 16;
   return ['scatter', 'line'].includes(pattern) ? 22 : 16;
@@ -290,6 +289,39 @@ export function isCompatible(
   return requiredFields[pattern].every((field) => available.has(field));
 }
 
+export function explainExcludedVisualizations(
+  task: AnalyticTask,
+  profile: DataProfile,
+  data: Datum[],
+): ExcludedVisualization[] {
+  const available = new Set([
+    ...profile.fields.map((field) => field.name),
+    'day',
+    'uncertainty_lower',
+    'uncertainty_upper',
+    'source_display_name',
+  ]);
+  return (Object.keys(requiredFields) as ChartPattern[]).flatMap((pattern) => {
+    const reasons: string[] = [];
+    if (!patterns[task].includes(pattern)) {
+      reasons.push(`Not in the curated candidate set for “${task}”.`);
+    } else {
+      const missing = requiredFields[pattern].filter((field) => !available.has(field));
+      if (missing.length) reasons.push(`Required fields are missing: ${missing.join(', ')}.`);
+      if (pattern === 'parallel_coordinates' && profile.numericFields.length < 4) {
+        reasons.push('Parallel coordinates requires at least four quantitative fields.');
+      }
+      if (
+        ['dot_plot', 'error_bar'].includes(pattern) &&
+        new Set(data.map((report) => report.count_unit)).size > 1
+      ) {
+        reasons.push('Reported quantities use mixed units and cannot share one scale.');
+      }
+    }
+    return reasons.length ? [{ title: techniqueNames[pattern], reason: reasons.join(' ') }] : [];
+  });
+}
+
 export function recommendVisualizations(
   profile: DataProfile,
   task: AnalyticTask,
@@ -321,9 +353,7 @@ export function recommendVisualizations(
         ...(derivedOutputs[pattern] ?? []),
         ...(['line', 'area', 'error_band'].includes(pattern) ? ['day'] : []),
         ...(pattern === 'observation_timeline' ? ['source_display_name'] : []),
-        ...(pattern === 'dot_plot' || pattern === 'error_bar'
-          ? ['source_display_name']
-          : []),
+        ...(pattern === 'dot_plot' || pattern === 'error_bar' ? ['source_display_name'] : []),
         ...(optionalFields[pattern] ?? []).filter((field) => availableFields.has(field)),
       ]);
       const visibleUncertainty = [

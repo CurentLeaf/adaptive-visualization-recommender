@@ -5,6 +5,7 @@ import type { TopLevelSpec } from 'vega-lite';
 import { generateSyntheticDataset } from '../data/syntheticGenerator';
 import { analyzeReports } from '../lib/analysis';
 import { DEFAULT_WEIGHTS } from '../domain/constants';
+import { DEFAULT_MISSION_CONTEXT, MDMP_TASK_PRESETS } from '../domain/mdmp';
 import {
   clearEvaluations,
   evaluationSummary,
@@ -17,6 +18,12 @@ import { scoreSalience } from '../lib/salience';
 import { buildSituationSummary, countIndependentSimilarReports } from '../lib/situationNarrative';
 import { createVegaSpec } from '../lib/vegaSpecFactory';
 import { isCompatible, recommendVisualizations } from '../lib/visualizationRecommendations';
+import { recommend } from '../lib/recommendationEngine';
+import {
+  loadRecommendationFeedback,
+  recentUsefulRecommendations,
+  saveRecommendationFeedback,
+} from '../lib/recommendationFeedback';
 import {
   createDefaultParallelRanges,
   filterByDimensionRanges,
@@ -41,11 +48,7 @@ describe('deterministic synthetic data and profiling', () => {
   it('creates deterministic narrative observations in all five Cedar Watch scenarios', () => {
     expect(data.reports).toHaveLength(24);
     expect(data.sources.map((source) => source.display_name)).toEqual(
-      expect.arrayContaining([
-        'Road Patrol Log',
-        'Radio Log Monitor',
-        'Community Contact Network',
-      ]),
+      expect.arrayContaining(['Road Patrol Log', 'Radio Log Monitor', 'Community Contact Network']),
     );
     expect(generateSyntheticDataset()).toEqual(data);
     expect(new Set(data.reports.map((r) => r.scenario_id)).size).toBe(5);
@@ -59,12 +62,14 @@ describe('deterministic synthetic data and profiling', () => {
     expect(data.locations.every((location) => location.grid_x >= 0 && location.grid_x <= 100)).toBe(
       true,
     );
-    expect(data.reports.every((report) => report.narrative_summary.includes(report.location_name))).toBe(
-      true,
-    );
-    expect(data.reports.every((report) => report.narrative_summary.includes(report.observed_at.slice(11, 16)))).toBe(
-      true,
-    );
+    expect(
+      data.reports.every((report) => report.narrative_summary.includes(report.location_name)),
+    ).toBe(true);
+    expect(
+      data.reports.every((report) =>
+        report.narrative_summary.includes(report.observed_at.slice(11, 16)),
+      ),
+    ).toBe(true);
   });
   it('identifies field roles, missingness, and evidence fields', () => {
     expect(profile.temporalFields).toContain('report_time');
@@ -75,6 +80,18 @@ describe('deterministic synthetic data and profiling', () => {
     expect(profile.uncertaintyFields).toContain('conflict_score');
     expect(profile.provenanceFields).toContain('source_id');
     expect(profile.fields.find((f) => f.name === 'reported_count')!.missingRate).toBeGreaterThan(0);
+    expect(profile.fields.find((field) => field.name === 'reported_count')).toMatchObject({
+      analyticRole: 'measure',
+      scaleType: 'continuous',
+    });
+    expect(profile.fields.find((field) => field.name === 'grid_x')).toMatchObject({
+      analyticRole: 'dimension',
+      scaleType: 'spatial',
+    });
+    expect(profile.fields.find((field) => field.name === 'source_confidence')?.isUncertainty).toBe(
+      true,
+    );
+    expect(profile.fields.find((field) => field.name === 'source_id')?.isProvenance).toBe(true);
   });
   it('keeps event, report, entity, location, source, and evaluation truth separate', () => {
     expect(data.events.length).toBeLessThan(data.reports.length);
@@ -147,10 +164,7 @@ describe('deterministic synthetic data and profiling', () => {
   it('summarizes each exercise scenario without overstating its evidence', () => {
     const scenarioReports = (scenario: string) =>
       data.reports.filter((report) => report.scenario_id === scenario);
-    const consistent = buildSituationSummary(
-      scenarioReports('corroboration'),
-      data.sources,
-    );
+    const consistent = buildSituationSummary(scenarioReports('corroboration'), data.sources);
     expect(consistent).toContain('Independent reports give similar counts');
     expect(consistent).toContain('Road Patrol Log');
     expect(consistent).not.toContain('give different counts');
@@ -181,9 +195,9 @@ describe('salience and models', () => {
     const anomalyRows = data.reports.filter((r) => r.scenario_id === 'anomaly');
     const analyzed = analyzeReports(anomalyRows);
     expect(anomalyRows).toHaveLength(8);
-    expect(anomalyRows.every((report) => Number.isFinite(analyzed.get(report.report_id)?.zScore))).toBe(
-      true,
-    );
+    expect(
+      anomalyRows.every((report) => Number.isFinite(analyzed.get(report.report_id)?.zScore)),
+    ).toBe(true);
     const degraded = data.reports
       .filter((r) => r.scenario_id === 'quality')
       .find((r) => r.translation_status === 'machine')!;
@@ -231,6 +245,27 @@ describe('salience and models', () => {
   });
 });
 describe('visualization rules and specs', () => {
+  it('exposes a reusable contextual recommendation API and explains excluded charts', () => {
+    const result = recommend({
+      profile,
+      task: 'compare_categories',
+      modeling: recommendModels(profile, 'compare_categories')[0],
+      weights: DEFAULT_WEIGHTS,
+      data: datum,
+      audience: 'Commander',
+      context: DEFAULT_MISSION_CONTEXT,
+    });
+    expect(result.ranked.length).toBeGreaterThan(0);
+    expect(result.explanation).toContain('Mission Analysis');
+    expect(result.explanation).toContain('Commander');
+    expect(
+      result.excluded.some((candidate) => candidate.reason.includes('curated candidate set')),
+    ).toBe(true);
+    expect(MDMP_TASK_PRESETS.find((preset) => preset.id === 'compare_coas')?.analyticTask).toBe(
+      undefined,
+    );
+  });
+
   it('returns ranked task-compatible charts with evidence fields', () => {
     for (const task of [
       'compare_categories',
@@ -279,14 +314,13 @@ describe('visualization rules and specs', () => {
       'examine_source_conflict',
       recommendModels(profile, 'examine_source_conflict')[0],
       DEFAULT_WEIGHTS,
-      [
-        ...datum,
-        { ...datum[0], report_id: 'mixed-unit', count_unit: 'people' },
-      ],
+      [...datum, { ...datum[0], report_id: 'mixed-unit', count_unit: 'people' }],
     );
-    expect(mixedUnits.some((recommendation) => ['dot_plot', 'error_bar'].includes(recommendation.chartPattern))).toBe(
-      false,
-    );
+    expect(
+      mixedUnits.some((recommendation) =>
+        ['dot_plot', 'error_bar'].includes(recommendation.chartPattern),
+      ),
+    ).toBe(false);
     const scatter = recommendVisualizations(
       profile,
       'examine_source_conflict',
@@ -337,6 +371,40 @@ describe('visualization rules and specs', () => {
       ),
     ).toEqual([{ report_age_hours: 20 }]);
     expect(ranges.report_age_hours).toEqual([0, 72]);
+  });
+
+  it('stores feedback with task and audience context and lists recent useful patterns', () => {
+    localStorage.clear();
+    const feedback = {
+      recommendationId: 'compare_categories-dot_plot',
+      title: 'Reported quantity by source',
+      chartPattern: 'dot_plot' as const,
+      analyticTask: 'compare_categories' as const,
+      audienceMode: 'Commander' as const,
+      context: DEFAULT_MISSION_CONTEXT,
+      filteredRowCount: 4,
+      dataCharacteristics: {
+        rowCount: 4,
+        fieldCount: 2,
+        fieldsWithMissingValues: ['reported_count'],
+        uncertaintyFields: ['source_confidence', 'missingness_score'],
+        temporalFields: ['observed_at'],
+        quantitativeFields: ['reported_count'],
+        categoricalFields: ['source_id'],
+      },
+      decision: 'useful' as const,
+      reason: 'Fits the task',
+      timestamp: '2026-10-10T00:00:00.000Z',
+    };
+    expect(saveRecommendationFeedback(feedback)).toEqual([feedback]);
+    expect(loadRecommendationFeedback()).toEqual([feedback]);
+    expect(recentUsefulRecommendations(loadRecommendationFeedback())).toEqual([feedback]);
+    saveRecommendationFeedback({
+      ...feedback,
+      decision: 'not_useful',
+      reason: 'Too simple for analysis',
+    });
+    expect(recentUsefulRecommendations(loadRecommendationFeedback())).toEqual([]);
   });
   it('includes the requested usage story', () => {
     expect(existsSync('docs/usage-story.md')).toBe(true);

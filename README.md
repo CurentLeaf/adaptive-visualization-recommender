@@ -58,6 +58,13 @@ The app follows a typed pipeline: scripted observation episodes → source repor
 - `src/lib/modelSelection.ts` and `src/lib/analysis.ts`: explicit analysis rules and derived values.
 - `src/lib/situationNarrative.ts`: deterministic situation summaries derived from report fields.
 - `src/lib/visualizationRecommendations.ts`: question, field, unit, episode, timing, uncertainty, and audience-aware scoring.
+- `src/lib/recommendationEngine.ts`: UI-independent `recommend(request)` API returning ranked, explained options and excluded chart types; a future UI can call the same TypeScript engine without using the current React components.
+- `src/domain/mdmp.ts`: MDMP task presets and mission-context types. Presets that require absent COA, risk, enemy-composition, or spatial-recommender fields are explicitly unavailable rather than inferred from unrelated synthetic evidence.
+- `src/lib/recommendationFeedback.ts`: schema-validated, browser-local feedback records and recent useful patterns, tagged with task, role, context, and data characteristics.
+- `src/components/dashboard/RecommendationCard.tsx`: recommendation previews, task/data rationale, fit score, brief snapshot, working-copy export, and short feedback controls.
+
+The primary flow is organized as **Task & Context → Data & Filters → Recommendations & Rationale**. The task presets map only to supported rule sets. Mission phase, echelon, horizon, variable class, filters, and audience are included in recommendation explanations and exported working-copy context; they do not manufacture missing COA or operational risk data. Field metadata marks measures/dimensions, scale type, missingness, uncertainty, and provenance. Commander view shows at most three recommendation cards and one active chart; Analyst view exposes richer controls and alternatives. Feedback is stored in the current browser only and is not uploaded.
+
 - `src/lib/vegaSpecFactory.ts`: quantity, report-frequency, timeline, evidence, and fictional-grid chart specifications.
 - `src/components/charts/SituationEvidenceViews.tsx`: readable report comparisons and timelines.
 - `src/components/details/EvidencePanel.tsx`: ordered observation, comparison, uncertainty, provenance, and technical details.
