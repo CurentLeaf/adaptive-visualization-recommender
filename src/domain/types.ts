@@ -280,6 +280,19 @@ export type ExcludedVisualization = {
   title: string;
   reason: string;
 };
+export type ExclusionReasonKind =
+  | 'curated_candidate_set'
+  | 'missing_required_fields'
+  | 'insufficient_numeric_fields'
+  | 'task_field_requirement'
+  | 'mixed_units';
+export type ExclusionReason = { kind: ExclusionReasonKind; detail: string };
+export type CandidateEvaluation = {
+  chartPattern: ChartPattern;
+  title: string;
+  eligible: boolean;
+  reasons: ExclusionReason[];
+};
 export type RecommendationFeedback = {
   recommendationId: string;
   title: string;

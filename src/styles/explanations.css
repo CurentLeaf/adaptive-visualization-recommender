@@ -1,0 +1,20 @@
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.factor-cell{display:flex;align-items:center;gap:6px;min-width:110px}
+.factor-track{flex:1;height:8px;background:#eef2f7;border-radius:4px;overflow:hidden}
+.factor-bar{display:block;height:100%}
+.factor-bar.contribution{background:#2f7d4f}
+.factor-bar.penalty{background:#b3382c}
+.factor-bar.zero{background:#9aa8b8}
+.factor-value{font-variant-numeric:tabular-nums;font-weight:700;min-width:32px;text-align:right}
+.factor-value.penalty{color:#9a2a1f}
+.factor-value.contribution{color:#1f6a3d}
+.factor-differs th{background:#fff8e6}
+.decision-path ol{padding-left:18px}
+.decision-path summary{cursor:pointer}
+.evidence-matrix td[data-state=unknown],.evidence-matrix td[data-state=not_recorded]{background:#fff8e6;font-style:italic}
+.evidence-matrix td[data-state=not_applicable]{color:#5c6d80}
+.evidence-matrix .selected-row th,.evidence-matrix .selected-row td{outline:2px solid #416aa5;outline-offset:-2px;background:#f0f6ff}
+.link-button{background:none;border:0;padding:0;color:#2c527b;text-decoration:underline;font-weight:700}
+.what-if-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.what-if-subset{display:grid;gap:6px;font-size:.78rem;margin:8px 0}
+.explanation-panel,.evidence-matrix-panel,.what-if-panel{margin-top:14px}

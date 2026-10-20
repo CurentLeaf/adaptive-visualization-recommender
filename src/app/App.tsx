@@ -21,6 +21,9 @@ import {
 } from '../components/charts/ParallelCoordinates';
 import { ProfilePanel } from '../components/dashboard/ProfilePanel';
 import { EvidencePanel } from '../components/details/EvidencePanel';
+import { EvidenceQualityMatrix } from '../components/details/EvidenceQualityMatrix';
+import { DecisionPathView, FactorComparisonView } from '../components/dashboard/ExplanationPanels';
+import { WhatIfPanel, type WhatIfState } from '../components/dashboard/WhatIfPanel';
 import { dataset } from '../data/seedData';
 import { DATA_LABEL, DEFAULT_WEIGHTS, SCENARIOS, TASKS } from '../domain/constants';
 import {
@@ -71,6 +74,8 @@ import {
   saveRecommendationFeedback,
 } from '../lib/recommendationFeedback';
 import { buildSituationSummary } from '../lib/situationNarrative';
+import { buildDecisionPath } from '../lib/explanations';
+import { EMPTY_SUBSET, runWhatIf } from '../lib/whatIf';
 import { RecommendationCard } from '../components/dashboard/RecommendationCard';
 
 const emptyFilters: Filters = {
@@ -189,6 +194,7 @@ export default function App() {
   const [feedbackReason, setFeedbackReason] = useState('Fits the task');
   const [feedbackStatus, setFeedbackStatus] = useState('');
   const [interactions, setInteractions] = useState<InteractionEvent[]>([]);
+  const [whatIf, setWhatIf] = useState<WhatIfState | null>(null);
   const startTime = useRef(Date.now());
   useEffect(() => {
     localStorage.setItem('avr-audience-v1', audience);
@@ -281,6 +287,45 @@ export default function App() {
   );
   const recommendations = recommendationResult.ranked;
   const excludedRecommendations = recommendationResult.excluded;
+  const decisionPath = useMemo(
+    () =>
+      buildDecisionPath({
+        task,
+        audience,
+        context: missionContext,
+        profile,
+        reportCount: chartData.length,
+        result: recommendationResult,
+      }),
+    [task, audience, missionContext, profile, chartData.length, recommendationResult],
+  );
+  const whatIfState: WhatIfState = whatIf ?? { task, audience, subset: EMPTY_SUBSET };
+  const whatIfResult = useMemo(
+    () =>
+      runWhatIf({
+        profile,
+        data: chartData,
+        weights,
+        missionContext,
+        current: { task, audience },
+        hypothetical: {
+          task: whatIfState.task,
+          audience: whatIfState.audience,
+          subset: whatIfState.subset,
+        },
+      }),
+    [
+      profile,
+      chartData,
+      weights,
+      missionContext,
+      task,
+      audience,
+      whatIfState.task,
+      whatIfState.audience,
+      whatIfState.subset,
+    ],
+  );
   const selectedChart = recommendations.find((r) => r.id === chartId) ?? recommendations[0];
   useEffect(() => {
     if (!chartId && recommendations[0]) setChartId(recommendations[0].id);
@@ -303,6 +348,7 @@ export default function App() {
     setParallelRanges(createDefaultParallelRanges());
     setSelectedId('');
     setChartId('');
+    setWhatIf(null);
     setShowComparison(false);
     setAnswer('');
     setResearchNote('');
@@ -320,6 +366,7 @@ export default function App() {
     setParallelRanges(createDefaultParallelRanges());
     setSelectedId('');
     setChartId('');
+    setWhatIf(null);
     setShowComparison(false);
     setAnswer('');
     setResearchNote('');
@@ -948,6 +995,13 @@ export default function App() {
                 No compatible visualization is available for this task and these fields.
               </p>
             )}
+            {selectedChart && (
+              <details className="explanation-panel" open={audience === 'Analyst'}>
+                <summary>Why this ranking? Factor comparison and decision path</summary>
+                <FactorComparisonView recommendations={recommendations} />
+                <DecisionPathView steps={decisionPath} />
+              </details>
+            )}
             {showMethod && selectedChart && (
               <details open>
                 <summary>Modeling method, inputs, outputs, and score components</summary>
@@ -1134,6 +1188,42 @@ export default function App() {
               </button>
             </details>
           </section>
+          <details className="panel evidence-matrix-panel" open={audience === 'Analyst'}>
+            <summary>Evidence-quality matrix and provenance links</summary>
+            <EvidenceQualityMatrix
+              reports={rows}
+              provenance={dataset.provenance}
+              exerciseAsOfTime={dataset.exerciseAsOfTime}
+              selectedId={selectedId}
+              detailed={audience === 'Analyst'}
+              onSelect={(id) => {
+                selectReport(id);
+                setShowEvidence(true);
+                track('evidence_matrix_select', id);
+              }}
+            />
+          </details>
+          <details className="panel what-if-panel">
+            <summary>
+              What-if comparison (hypothetical, does not change the active analysis)
+            </summary>
+            <WhatIfPanel
+              state={whatIfState}
+              result={whatIfResult}
+              selectedReportId={selectedId || undefined}
+              onChange={(next) => {
+                setWhatIf(next);
+                track(
+                  'what_if_change',
+                  `${next.task}:${next.audience}:${next.subset.independentOnly ? 'independent' : 'any'}:${next.subset.humanVerifiedOnly ? 'verified' : 'any'}:${next.subset.excludeReportIds.length}`,
+                );
+              }}
+              onReset={() => {
+                setWhatIf(null);
+                track('what_if_reset', 'reset');
+              }}
+            />
+          </details>
           <details className="detailed-analysis" open={audience === 'Analyst' || showDetailed}>
             <summary>
               {audience === 'Analyst'

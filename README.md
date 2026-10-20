@@ -94,6 +94,7 @@ Evaluation questions and answer choices use readable claims rather than syntheti
 - [Visualization techniques](./docs/visualization-techniques.md) — mappings, scales, and limitations.
 - [Audience and disclosure](./docs/audience-and-disclosure.md) — Commander/Analyst presentation and scoring.
 - [Usage story](./docs/usage-story.md) — a demonstration from situation to evidence trail.
+- [Explanations, evidence quality, and what-if](./docs/explanations-and-what-if.md) — factor comparison, decision path, evidence-quality matrix, hypothetical runs, limits, and demo walkthrough.
 
 ## Limitations
 
