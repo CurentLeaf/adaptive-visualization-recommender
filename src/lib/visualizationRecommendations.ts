@@ -3,7 +3,9 @@ import type {
   AudienceMode,
   ChartPattern,
   DataProfile,
+  CandidateEvaluation,
   ExcludedVisualization,
+  ExclusionReason,
   ModelingRecommendation,
   SalienceWeights,
   SuitabilityBreakdown,
@@ -289,11 +291,11 @@ export function isCompatible(
   return requiredFields[pattern].every((field) => available.has(field));
 }
 
-export function explainExcludedVisualizations(
+export function evaluateCandidates(
   task: AnalyticTask,
   profile: DataProfile,
   data: Datum[],
-): ExcludedVisualization[] {
+): CandidateEvaluation[] {
   const available = new Set([
     ...profile.fields.map((field) => field.name),
     'day',
@@ -301,25 +303,71 @@ export function explainExcludedVisualizations(
     'uncertainty_upper',
     'source_display_name',
   ]);
-  return (Object.keys(requiredFields) as ChartPattern[]).flatMap((pattern) => {
-    const reasons: string[] = [];
+  const mixedUnits = new Set(data.map((report) => report.count_unit)).size > 1;
+  return (Object.keys(requiredFields) as ChartPattern[]).map((pattern) => {
+    const reasons: ExclusionReason[] = [];
     if (!patterns[task].includes(pattern)) {
-      reasons.push(`Not in the curated candidate set for “${task}”.`);
+      reasons.push({
+        kind: 'curated_candidate_set',
+        detail: `Not in the curated candidate set for “${task}”.`,
+      });
     } else {
       const missing = requiredFields[pattern].filter((field) => !available.has(field));
-      if (missing.length) reasons.push(`Required fields are missing: ${missing.join(', ')}.`);
+      if (missing.length)
+        reasons.push({
+          kind: 'missing_required_fields',
+          detail: `Required fields are missing: ${missing.join(', ')}.`,
+        });
       if (pattern === 'parallel_coordinates' && profile.numericFields.length < 4) {
-        reasons.push('Parallel coordinates requires at least four quantitative fields.');
+        reasons.push({
+          kind: 'insufficient_numeric_fields',
+          detail: 'Parallel coordinates requires at least four quantitative fields.',
+        });
       }
       if (
-        ['dot_plot', 'error_bar'].includes(pattern) &&
-        new Set(data.map((report) => report.count_unit)).size > 1
-      ) {
-        reasons.push('Reported quantities use mixed units and cannot share one scale.');
+        task === 'compare_categories' &&
+        !profile.fields.some((field) => field.name === 'reported_count')
+      )
+        reasons.push({
+          kind: 'task_field_requirement',
+          detail: 'Comparing quantities requires the reported_count field.',
+        });
+      if (
+        task === 'analyze_trends' &&
+        (!profile.temporalFields.includes('observed_at') ||
+          !profile.fields.some((field) => field.name === 'report_id'))
+      )
+        reasons.push({
+          kind: 'task_field_requirement',
+          detail: 'Trend analysis requires observed_at as a temporal field and report_id.',
+        });
+      if (['dot_plot', 'error_bar'].includes(pattern) && mixedUnits) {
+        reasons.push({
+          kind: 'mixed_units',
+          detail: 'Reported quantities use mixed units and cannot share one scale.',
+        });
       }
     }
-    return reasons.length ? [{ title: techniqueNames[pattern], reason: reasons.join(' ') }] : [];
+    return {
+      chartPattern: pattern,
+      title: techniqueNames[pattern],
+      eligible: !reasons.length,
+      reasons,
+    };
   });
+}
+
+export function explainExcludedVisualizations(
+  task: AnalyticTask,
+  profile: DataProfile,
+  data: Datum[],
+): ExcludedVisualization[] {
+  return evaluateCandidates(task, profile, data)
+    .filter((candidate) => !candidate.eligible)
+    .map((candidate) => ({
+      title: candidate.title,
+      reason: candidate.reasons.map((reason) => reason.detail).join(' '),
+    }));
 }
 
 export function recommendVisualizations(

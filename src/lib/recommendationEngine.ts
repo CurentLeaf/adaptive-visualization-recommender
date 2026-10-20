@@ -1,6 +1,7 @@
 import type {
   AnalyticTask,
   AudienceMode,
+  CandidateEvaluation,
   DataProfile,
   ExcludedVisualization,
   MissionContext,
@@ -11,6 +12,7 @@ import type {
 import { TASKS } from '../domain/constants';
 import { MDMP_PHASES } from '../domain/mdmp';
 import {
+  evaluateCandidates,
   explainExcludedVisualizations,
   recommendVisualizations,
 } from './visualizationRecommendations';
@@ -30,6 +32,7 @@ export type RecommendationRequest = {
 export type RecommendationResult = {
   ranked: VisualizationRecommendation[];
   excluded: ExcludedVisualization[];
+  candidates: CandidateEvaluation[];
   explanation: string;
 };
 
@@ -44,6 +47,7 @@ export function recommend(request: RecommendationRequest): RecommendationResult 
   );
   return {
     ranked,
+    candidates: evaluateCandidates(request.task, request.profile, request.data),
     excluded: explainExcludedVisualizations(request.task, request.profile, request.data),
     explanation:
       `Task: ${TASKS[request.task].label}. ` +
