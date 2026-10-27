@@ -1,0 +1,15 @@
+{
+  "schema_version": "avr-import/1",
+  "synthetic": true,
+  "facts": [
+    { "fact_id": "SYN-F-001", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 20.5, "unit": "synthetic degrees", "entity_type": "synthetic_sensor", "as_of": "2025-01-01T00:00:00Z", "current": false, "valid_from": "2025-01-01T00:00:00Z", "valid_to": "2025-02-01T00:00:00Z" },
+    { "fact_id": "SYN-F-002", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 21.0, "unit": "synthetic degrees", "entity_type": "synthetic_sensor", "as_of": "2025-01-15T12:00:00+02:00", "current": false, "valid_from": "2025-02-01T00:00:00Z", "valid_to": "2025-03-01T00:00:00Z" },
+    { "fact_id": "SYN-F-003", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": "22.5", "unit": "synthetic degrees", "as_of": "2025-03-01T00:00:00Z", "current": true, "valid_from": "2025-03-01T00:00:00Z", "valid_to": null },
+    { "fact_id": "SYN-F-004", "entity_id": "SYN-ENTITY-BETA", "predicate": "synthetic_temperature", "object_value": 5, "unit": "synthetic kelvin", "entity_type": "synthetic_sensor", "as_of": "2025-02-10T00:00:00Z" },
+    { "fact_id": "SYN-F-005", "entity_id": "SYN-ENTITY-BETA", "predicate": "synthetic_label", "object_value": "north wing", "as_of": "2025-02-10T00:00:00Z", "current": true },
+    { "fact_id": "SYN-F-006", "entity_id": "SYN-ENTITY-GAMMA", "predicate": "synthetic_count", "object_value": 7, "as_of": "2025-02-11T00:00:00Z", "custom_unknown_field": { "kept": "as supplied" } },
+    { "fact_id": "SYN-F-007", "entity_id": "SYN-ENTITY-GAMMA", "predicate": "synthetic_price", "object_value": 19.99, "currency": "SYN", "as_of": "2025-02-12T00:00:00Z" },
+    { "fact_id": "SYN-F-008", "entity_id": "SYN-ENTITY-GAMMA", "predicate": "synthetic_note", "object_value": "1,234", "as_of": "2025-02-12T00:00:00Z" },
+    { "fact_id": "SYN-F-009", "entity_id": "SYN-ENTITY-GAMMA", "predicate": "synthetic_count", "object_value": null, "as_of": "2025-02-13T00:00:00Z" }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "avr-import/1",
+  "synthetic": true,
+  "facts": [
+    { "fact_id": "SYN-F-P1", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 20.5, "unit": "synthetic degrees", "as_of": "2025-01-01T00:00:00Z", "supporting_deduction_ids": ["SYN-D-MISSING", "SYN-D-P1"] },
+    { "fact_id": "SYN-F-P2", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 30, "unit": "synthetic degrees", "as_of": "2025-01-02T00:00:00Z", "supporting_deduction_ids": ["SYN-D-P1"] },
+    { "fact_id": "SYN-F-P3", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 31, "unit": "synthetic degrees", "as_of": "2025-01-03T00:00:00Z", "supporting_deduction_ids": ["SYN-D-P2"] }
+  ],
+  "deductions": [
+    { "deduction_id": "SYN-D-P1", "fact_id": "SYN-F-P1", "subject_entity": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 20.5 },
+    { "deduction_id": "SYN-D-P2", "subject_entity": "SYN-ENTITY-OTHER", "predicate": "synthetic_other_predicate", "object_value": 99 },
+    { "deduction_id": "SYN-D-P3", "fact_id": "SYN-F-NOT-THERE", "predicate": "synthetic_temperature" }
+  ]
+}

@@ -16,6 +16,11 @@ import {
   explainExcludedVisualizations,
   recommendVisualizations,
 } from './visualizationRecommendations';
+import {
+  recommendImported,
+  type ImportedRecommendationRequest,
+  type ImportedRecommendationResult,
+} from '../imported/candidates';
 
 export type RecommendationDatum = Parameters<typeof recommendVisualizations>[4][number];
 
@@ -36,7 +41,19 @@ export type RecommendationResult = {
   explanation: string;
 };
 
-export function recommend(request: RecommendationRequest): RecommendationResult {
+export type { ImportedRecommendationRequest, ImportedRecommendationResult };
+
+/** Legacy Cedar Watch requests keep their original shape; imported data uses `dataset: 'imported'`. */
+export function recommend(request: RecommendationRequest): RecommendationResult;
+export function recommend(request: ImportedRecommendationRequest): ImportedRecommendationResult;
+export function recommend(
+  request: RecommendationRequest | ImportedRecommendationRequest,
+): RecommendationResult | ImportedRecommendationResult {
+  if ('dataset' in request && request.dataset === 'imported') return recommendImported(request);
+  return recommendCedarWatch(request as RecommendationRequest);
+}
+
+function recommendCedarWatch(request: RecommendationRequest): RecommendationResult {
   const ranked = recommendVisualizations(
     request.profile,
     request.task,

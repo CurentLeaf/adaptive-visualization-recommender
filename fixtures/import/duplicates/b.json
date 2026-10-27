@@ -1,0 +1,4 @@
+{ "schema_version": "avr-import/1", "synthetic": true, "facts": [
+  { "as_of": "2025-01-01T00:00:00Z", "object_value": 1, "predicate": "synthetic_value", "entity_id": "SYN-E1", "fact_id": "SYN-DUP-SAME" },
+  { "fact_id": "SYN-DUP-CONFLICT", "entity_id": "SYN-E1", "predicate": "synthetic_value", "object_value": 11, "as_of": "2025-01-01T00:00:00Z" }
+] }

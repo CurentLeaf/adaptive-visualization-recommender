@@ -1,0 +1,9 @@
+{
+  "schema_version": "avr-import/1",
+  "synthetic": true,
+  "deductions": [
+    { "deduction_id": "SYN-D-001", "source_file_path": "synthetic/inert/not-opened.txt", "chunk_id": "SYN-C-1", "as_of": "2025-01-01T00:00:00Z", "subject_entity": "SYN-ENTITY-ALPHA", "subject_entity_type": "synthetic_sensor", "predicate": "synthetic_temperature", "object_value": 20.5, "object_type": "number", "extraction_method": "synthetic_example", "confidence": 0.9, "provenance": { "extraction_path": "synthetic/path", "model_used": "none", "raw_text": "SYNTHETIC: alpha reads 20.5 synthetic degrees. <b>not html</b>" }, "metadata": { "file_hash": null, "chunk_index": 0, "total_chunks": 2, "start_offset": 0, "end_offset": 60 } },
+    { "deduction_id": "SYN-D-002", "chunk_id": "SYN-C-2", "subject_entity": "SYN-ENTITY-BETA", "predicate": "synthetic_label", "object_value": "north wing", "extraction_method": "synthetic_example", "provenance": { "raw_text": "SYNTHETIC: beta is in the north wing." } },
+    { "deduction_id": "SYN-D-003", "subject_entity": "SYN-ENTITY-UNKNOWN", "predicate": "synthetic_other", "object_value": 1 }
+  ]
+}
