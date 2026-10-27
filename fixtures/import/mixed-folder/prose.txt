@@ -1,0 +1,1 @@
+SYNTHETIC prose: This text file contains a sentence, not JSON. It is not converted into records.

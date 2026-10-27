@@ -1,0 +1,19 @@
+{
+  "schema_version": "avr-import/1",
+  "synthetic": true,
+  "facts": [
+    { "fact_id": "SYN-T-OPEN", "entity_id": "SYN-E1", "predicate": "synthetic_status", "object_value": "open", "as_of": "2025-01-01T00:00:00Z", "valid_from": "2025-01-01T00:00:00Z", "valid_to": null },
+    { "fact_id": "SYN-T-MISSING", "entity_id": "SYN-E1", "predicate": "synthetic_status", "object_value": "missing end", "as_of": "2025-01-02T00:00:00Z", "valid_from": "2025-01-02T00:00:00Z" },
+    { "fact_id": "SYN-T-BOUNDED", "entity_id": "SYN-E2", "predicate": "synthetic_status", "object_value": "bounded", "as_of": "2025-01-03T00:00:00Z", "valid_from": "2025-01-01T00:00:00Z", "valid_to": "2025-02-01T00:00:00Z" },
+    { "fact_id": "SYN-T-OVERLAP", "entity_id": "SYN-E2", "predicate": "synthetic_status", "object_value": "overlapping", "as_of": "2025-01-04T00:00:00Z", "valid_from": "2025-01-15T00:00:00Z", "valid_to": "2025-03-01T00:00:00Z" },
+    { "fact_id": "SYN-T-OLD", "entity_id": "SYN-E3", "predicate": "synthetic_value", "object_value": 1, "unit": "synthetic units", "as_of": "2025-01-01T00:00:00Z", "current": true, "superseded_by": ["SYN-T-NEW"] },
+    { "fact_id": "SYN-T-NEW", "entity_id": "SYN-E3", "predicate": "synthetic_value", "object_value": 2, "unit": "synthetic units", "as_of": "2025-01-05T00:00:00Z", "current": true, "supersedes": ["SYN-T-OLD"], "note": "A replacement may be a correction, not a real-world change." },
+    { "fact_id": "SYN-T-BADDATE", "entity_id": "SYN-E4", "predicate": "synthetic_status", "object_value": "bad date", "as_of": "2025-13-45T99:00:00Z", "valid_from": "not a date" },
+    { "fact_id": "SYN-T-AMBIGUOUS", "entity_id": "SYN-E4", "predicate": "synthetic_status", "object_value": "no offset", "as_of": "2025-01-01T10:00:00", "valid_from": "2025-01-01" },
+    { "fact_id": "SYN-T-REVERSED", "entity_id": "SYN-E4", "predicate": "synthetic_status", "object_value": "reversed", "as_of": "2025-01-01T00:00:00Z", "valid_from": "2025-06-01T00:00:00Z", "valid_to": "2025-01-01T00:00:00Z" },
+    { "fact_id": "SYN-T-SELF", "entity_id": "SYN-E5", "predicate": "synthetic_status", "object_value": "self", "supersedes": ["SYN-T-SELF"] },
+    { "fact_id": "SYN-T-CYC-A", "entity_id": "SYN-E5", "predicate": "synthetic_status", "object_value": "cycle a", "supersedes": ["SYN-T-CYC-B"] },
+    { "fact_id": "SYN-T-CYC-B", "entity_id": "SYN-E5", "predicate": "synthetic_status", "object_value": "cycle b", "supersedes": ["SYN-T-CYC-A"] },
+    { "fact_id": "SYN-T-DANGLING", "entity_id": "SYN-E5", "predicate": "synthetic_status", "object_value": "dangling", "supersedes": ["SYN-T-NOWHERE"] }
+  ]
+}

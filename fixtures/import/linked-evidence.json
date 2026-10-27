@@ -1,0 +1,14 @@
+{
+  "schema_version": "avr-import/1",
+  "synthetic": true,
+  "facts": [
+    { "fact_id": "SYN-F-L1", "entity_id": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 20.5, "unit": "synthetic degrees", "as_of": "2025-01-01T00:00:00Z", "supporting_deduction_ids": ["SYN-D-L1", "SYN-D-L2"] },
+    { "fact_id": "SYN-F-L2", "entity_id": "SYN-ENTITY-BETA", "predicate": "synthetic_label", "object_value": "north wing", "as_of": "2025-01-02T00:00:00Z" },
+    { "fact_id": "SYN-F-L3", "entity_id": "SYN-ENTITY-GAMMA", "predicate": "synthetic_count", "object_value": 7, "as_of": "2025-01-03T00:00:00Z" }
+  ],
+  "deductions": [
+    { "deduction_id": "SYN-D-L1", "fact_id": "SYN-F-L1", "subject_entity": "SYN-ENTITY-ALPHA", "subject_entity_type": "synthetic_sensor", "predicate": "synthetic_temperature", "object_value": 20.5, "confidence": 0.8, "provenance": { "raw_text": "SYNTHETIC: first supporting extraction." } },
+    { "deduction_id": "SYN-D-L2", "subject_entity": "SYN-ENTITY-ALPHA", "predicate": "synthetic_temperature", "object_value": 20.5, "confidence": 0.4, "provenance": { "raw_text": "SYNTHETIC: second supporting extraction, linked from the fact side only." } },
+    { "deduction_id": "SYN-D-L3", "subject_entity": "SYN-ENTITY-GAMMA", "subject_entity_type": "synthetic_counter", "predicate": "synthetic_count", "object_value": 7, "confidence": 0.99, "provenance": { "raw_text": "SYNTHETIC: matches SYN-F-L3 by value but has NO explicit link." } }
+  ]
+}
