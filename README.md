@@ -13,6 +13,12 @@ npm run dev
 
 Open the local URL printed by Vite (usually `http://localhost:5173`). No account, database, or backend is needed. Build with `npm run build`, run tests with `npm test`, lint with `npm run lint`, and format with `npm run format`. On Windows PowerShell with script execution disabled, use `npm.cmd` in place of `npm`.
 
+## Human participant study
+
+The default page is a dark, guided participant view: read a scenario, inspect one assigned visualization, then submit an answer and confidence. It hides recommendation scores and correctness feedback. Open `?mode=researcher` for the original exploration workspace. Use Preview settings outside a trial to inspect the supported study conditions.
+
+For reVISit, see the [study integration guide](./docs/revisit-study.md), including the required reactive response, condition parameters, relative build, and pilot checklist. reVISit controls participant assignment and trial sequencing; this repository provides the stimulus.
+
 ## Use from anywhere
 
 The project is a static web app and can be hosted without a server or database. To publish it on GitHub Pages:

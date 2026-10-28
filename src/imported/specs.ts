@@ -9,12 +9,40 @@ const base = (values: unknown[]) => ({
   $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
   data: { values },
   width: 'container',
-  height: 280,
-  background: '#ffffff',
+  height: 300,
+  padding: { top: 16, right: 24, bottom: 14, left: 8 },
+  autosize: { type: 'fit-x', contains: 'padding' },
+  background: '#101827',
   config: {
+    font: 'Inter, system-ui, sans-serif',
     view: { stroke: null },
-    axis: { labelColor: '#334155', titleColor: '#334155', gridColor: '#e2e8f0' },
-    legend: { labelColor: '#334155' },
+    axis: {
+      labelColor: '#cbd5e1',
+      titleColor: '#e2e8f0',
+      gridColor: '#263448',
+      domainColor: '#475569',
+      tickColor: '#475569',
+      labelFontSize: 12,
+      titleFontSize: 12,
+      titleFontWeight: 500,
+      titlePadding: 16,
+      labelPadding: 8,
+      labelLimit: 180,
+      labelOverlap: true,
+      tickCount: 5,
+    },
+    axisX: { labelAngle: 0 },
+    legend: {
+      labelColor: '#cbd5e1',
+      titleColor: '#e2e8f0',
+      orient: 'bottom',
+      labelFontSize: 12,
+      labelLimit: 220,
+      columns: 2,
+      rowPadding: 8,
+      padding: 12,
+    },
+    range: { category: ['#5eead4', '#93c5fd', '#fbbf24', '#c4b5fd', '#fda4af', '#67e8f9'] },
   },
 });
 
@@ -36,7 +64,7 @@ export function createValidityTimelineSpec(rows: TimelineRow[]): Record<string, 
   const y = { field: 'fact_id', type: 'nominal', title: 'Fact ID', sort: { field: 'start_ms' } };
   return {
     ...base(rows),
-    height: Math.max(160, rows.length * 34),
+    height: Math.max(220, rows.length * 40),
     layer: [
       {
         transform: [
@@ -53,7 +81,7 @@ export function createValidityTimelineSpec(rows: TimelineRow[]): Record<string, 
       },
       {
         transform: [{ filter: { field: 'start_ms', valid: true } }],
-        mark: { type: 'point', filled: true, size: 90, color: '#2563eb' },
+        mark: { type: 'point', filled: true, size: 90, color: '#5eead4' },
         encoding: {
           x: utcTime('start_ms', 'Supplied validity (UTC)'),
           y,
@@ -63,7 +91,7 @@ export function createValidityTimelineSpec(rows: TimelineRow[]): Record<string, 
       },
       {
         transform: [{ filter: { field: 'end_ms', valid: true } }],
-        mark: { type: 'point', filled: false, size: 90, color: '#b45309' },
+        mark: { type: 'point', filled: false, size: 90, color: '#fbbf24' },
         encoding: {
           x: utcTime('end_ms', 'Supplied validity (UTC)'),
           y,

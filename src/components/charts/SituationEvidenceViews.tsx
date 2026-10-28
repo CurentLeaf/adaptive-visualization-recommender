@@ -2,9 +2,11 @@ import type { Location, Report, Source } from '../../domain/types';
 
 const timeOf = (value: string) => value.slice(11, 16);
 const quantityOf = (report: Report) => {
-  if (report.count_precision === 'unknown' || report.reported_count === null) return 'Unknown count';
+  if (report.count_precision === 'unknown' || report.reported_count === null)
+    return 'Unknown count';
   const unit = report.count_unit;
-  if (report.count_precision === 'approximate') return `Approximately ${report.reported_count} ${unit}`;
+  if (report.count_precision === 'approximate')
+    return `Approximately ${report.reported_count} ${unit}`;
   if (report.count_precision === 'range')
     return `Reported range ${report.reported_count_lower}–${report.reported_count_upper} ${unit}`;
   return `${report.reported_count} ${unit} (exact as reported)`;
@@ -47,7 +49,10 @@ export function ReportComparisonTable({
         </thead>
         <tbody>
           {chronological.map((report) => (
-            <tr key={report.report_id} className={selectedId === report.report_id ? 'selected' : ''}>
+            <tr
+              key={report.report_id}
+              className={selectedId === report.report_id ? 'selected' : ''}
+            >
               <th scope="row">
                 <button
                   className="text-button"
@@ -153,10 +158,10 @@ export function ObservationTimeline({
                 {sourceNames.get(report.source_id) ?? report.report_id}
               </text>
               <line x1={observedX} x2={receivedX} y1={y} y2={y} stroke="#64748b" strokeWidth="2" />
-              <circle cx={observedX} cy={y} r="6" fill="#2563eb">
+              <circle cx={observedX} cy={y} r="6" fill="#5eead4">
                 <title>{`Observed ${timeOf(report.observed_at)}: ${report.report_title}`}</title>
               </circle>
-              <rect x={receivedX - 5} y={y - 5} width="10" height="10" fill="#b45309">
+              <rect x={receivedX - 5} y={y - 5} width="10" height="10" fill="#fbbf24">
                 <title>{`Received ${timeOf(report.received_at)}: ${report.report_title}`}</title>
               </rect>
             </g>
@@ -168,9 +173,12 @@ export function ObservationTimeline({
               {timeOf(sorted[0].observed_at)} observed
             </text>
             <text x={right} y={height - 22} textAnchor="end" className="situation-axis-label">
-              {timeOf(sorted.reduce((latest, report) =>
-                report.received_at > latest.received_at ? report : latest,
-              ).received_at)} received
+              {timeOf(
+                sorted.reduce((latest, report) =>
+                  report.received_at > latest.received_at ? report : latest,
+                ).received_at,
+              )}{' '}
+              received
             </text>
           </>
         )}
@@ -203,11 +211,11 @@ export function FictionalGridPlot({
         aria-label="Fictional local coordinate plot of locations with reports"
         className="situation-svg grid-plot"
       >
-        <rect x="48" y="18" width="480" height="300" fill="#f8fafc" stroke="#94a3b8" />
+        <rect x="48" y="18" width="480" height="300" fill="#0b1120" stroke="#94a3b8" />
         {[0, 25, 50, 75, 100].map((tick) => (
           <g key={tick}>
-            <line x1={48 + tick * 4.8} x2={48 + tick * 4.8} y1="18" y2="318" stroke="#e2e8f0" />
-            <line x1="48" x2="528" y1={318 - tick * 3} y2={318 - tick * 3} stroke="#e2e8f0" />
+            <line x1={48 + tick * 4.8} x2={48 + tick * 4.8} y1="18" y2="318" stroke="#28364a" />
+            <line x1="48" x2="528" y1={318 - tick * 3} y2={318 - tick * 3} stroke="#28364a" />
           </g>
         ))}
         {locations.map((location) => {
@@ -230,12 +238,7 @@ export function FictionalGridPlot({
               }}
               className={firstReport ? 'grid-location-selectable' : undefined}
             >
-              <circle
-                cx={x}
-                cy={y}
-                r={reported ? 8 : 5}
-                fill={reported ? '#2563eb' : '#94a3b8'}
-              >
+              <circle cx={x} cy={y} r={reported ? 8 : 5} fill={reported ? '#5eead4' : '#94a3b8'}>
                 <title>
                   {`${location.name}: ${location.description}; ${reported ? 'reports present in this view' : 'no matching reports in this view'}`}
                 </title>

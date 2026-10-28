@@ -1,0 +1,359 @@
+:root:root {
+  color-scheme: dark;
+  --surface-base: #0b1120;
+  --surface-panel: #101827;
+  --surface-raised: #152033;
+  --border-subtle: #28364a;
+  --text-primary: #e2e8f0;
+  --text-muted: #a4b4cb;
+  --accent: #5eead4;
+  color: var(--text-primary);
+  background: var(--surface-base);
+}
+
+html body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+}
+
+html input,
+html select,
+html textarea {
+  accent-color: var(--accent);
+}
+
+html a {
+  color: #7dd3fc;
+}
+
+html button:focus-visible,
+html input:focus-visible,
+html select:focus-visible,
+html textarea:focus-visible,
+html summary:focus-visible,
+html a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.app-shell.app-shell {
+  max-width: 1560px;
+  padding: 28px;
+  line-height: 1.55;
+}
+
+.app-shell .site-header {
+  border-color: var(--border-subtle);
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+
+.app-shell .site-header p,
+.app-shell .section-title p,
+.app-shell .module-heading p,
+.app-shell small,
+.app-shell .help,
+.app-shell .muted,
+.app-shell .caption,
+.app-shell .detail-grid dt,
+.app-shell .stage-trail dt,
+.app-shell table caption,
+.app-shell footer,
+.app-shell .empty {
+  color: var(--text-muted);
+}
+
+.app-shell .eyebrow,
+.app-shell .section-title svg {
+  color: var(--accent);
+}
+
+.app-shell .panel {
+  background: var(--surface-panel);
+  border-color: var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: none;
+  padding: 22px;
+}
+
+.app-shell .layout {
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.app-shell .workspace {
+  gap: 22px;
+}
+
+.app-shell .evidence {
+  position: static;
+  grid-column: 1 / -1;
+  max-height: none;
+}
+
+.app-shell .field {
+  gap: 7px;
+  margin: 15px 0;
+  font-size: 0.82rem;
+}
+
+.app-shell .field select,
+.app-shell .field input[type='date'],
+.app-shell select,
+.app-shell textarea,
+.app-shell input[type='text'],
+.app-shell input[type='number'] {
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid #3b4c64;
+  border-radius: 8px;
+  padding: 10px;
+  max-width: 100%;
+}
+
+.app-shell input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.app-shell .button,
+.app-shell .icon-button {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: #3b4c64;
+  min-height: 38px;
+}
+
+.app-shell .button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #082f2c;
+}
+
+.app-shell .button.secondary {
+  background: #1b2d43;
+  color: #c5e5fa;
+}
+
+.app-shell .button.ghost {
+  background: transparent;
+}
+
+.app-shell .button:hover:enabled,
+.app-shell .icon-button:hover:enabled {
+  filter: brightness(1.12);
+  border-color: #7291af;
+}
+
+.app-shell .button-row {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-shell .recommendations {
+  gap: 16px;
+}
+
+.app-shell .rec-card {
+  background: var(--surface-raised);
+  border-color: #33465f;
+  color: var(--text-primary);
+  padding: 18px;
+}
+
+.app-shell .rec-card.active {
+  background: #142e36;
+  border: 2px solid var(--accent);
+}
+
+.app-shell .rec-card p {
+  line-height: 1.6;
+  margin: 12px 0;
+}
+
+.app-shell .rec-top {
+  align-items: flex-start;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.app-shell .rec-top strong {
+  color: var(--accent);
+}
+
+.app-shell .recommendation-preview {
+  background: var(--surface-base);
+  border-color: var(--border-subtle);
+  height: 90px;
+  margin: 14px 0;
+}
+
+.app-shell .pill,
+.app-shell .module-number,
+.app-shell .chips span {
+  color: #a7f3e7;
+  background: #1b3841;
+}
+
+.app-shell .notice,
+.app-shell .notice-text,
+.app-shell .feedback,
+.app-shell .formula {
+  color: #c5e5fa;
+  background: #182c42;
+}
+
+.app-shell .warning,
+.app-shell .uncertainty-cautions,
+.app-shell .factor-differs th,
+.app-shell .evidence-matrix td[data-state='unknown'],
+.app-shell .evidence-matrix td[data-state='not_recorded'] {
+  background: #33291b;
+  color: #fcd78c;
+  border-color: #72552b;
+}
+
+.app-shell .metadata-caveat,
+.app-shell .unavailable-slices p {
+  color: #fcd78c;
+}
+
+.app-shell .situation-summary {
+  background: #152b3b;
+  border-left-color: var(--accent);
+  line-height: 1.75;
+}
+
+.app-shell .stage-trail > li,
+.app-shell .model-grid article,
+.app-shell .axis-chooser,
+.app-shell .axis-order-item,
+.app-shell .range-control {
+  border-color: var(--border-subtle);
+}
+
+.app-shell .controls > section + section,
+.app-shell .controls > details,
+.app-shell .inspector-section,
+.app-shell .technical-details,
+.app-shell .rec-feedback,
+.app-shell .recent-useful,
+.app-shell .why-not,
+.app-shell .parallel-ranges {
+  border-top-color: var(--border-subtle);
+}
+
+.app-shell details > summary,
+.app-shell .inspector-section h4,
+.app-shell .text-button,
+.app-shell .table-select,
+.app-shell .link-button {
+  color: #a4dfee;
+}
+
+.app-shell details > summary {
+  line-height: 1.6;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.app-shell .rec-feedback [aria-pressed='true'] {
+  background: #1b3841;
+  border-color: var(--accent);
+}
+
+.app-shell th,
+.app-shell td {
+  border-color: var(--border-subtle);
+  padding: 11px 9px;
+  line-height: 1.6;
+}
+
+.app-shell th {
+  white-space: normal;
+}
+
+.app-shell .selected-row,
+.app-shell .evidence-matrix .selected-row th,
+.app-shell .evidence-matrix .selected-row td {
+  outline-color: var(--accent);
+  background: #17343e;
+}
+
+.app-shell .factor-track {
+  background: #28364a;
+}
+
+.app-shell .factor-bar.contribution {
+  background: #5eead4;
+}
+
+.app-shell .factor-bar.penalty {
+  background: #fda4af;
+}
+
+.app-shell .factor-value.contribution {
+  color: #5eead4;
+}
+
+.app-shell .factor-value.penalty {
+  color: #fda4af;
+}
+
+.app-shell .evidence-matrix td[data-state='not_applicable'] {
+  color: var(--text-muted);
+}
+
+.app-shell .chart-panel,
+.app-shell .situation-chart,
+.app-shell .parallel-panel {
+  overflow-x: auto;
+}
+
+.app-shell .parallel-svg {
+  display: block;
+  min-width: 820px;
+}
+
+.app-shell .situation-svg {
+  max-height: none;
+}
+
+.app-shell .situation-axis-label,
+.app-shell .axis-label {
+  fill: var(--text-primary);
+}
+
+.app-shell .axis-tick,
+.app-shell .axis-direction {
+  fill: var(--text-muted);
+}
+
+.app-shell .timeline-row:focus circle,
+.app-shell .timeline-row[aria-pressed='true'] circle,
+.app-shell .grid-location-selectable:focus circle,
+.app-shell .parallel-svg path[role='button']:focus {
+  stroke: #fbbf24;
+  stroke-width: 3px;
+}
+
+@media (max-width: 1000px) {
+  .app-shell .recommendations,
+  .app-shell .linked-grid,
+  .app-shell .evaluation {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell.app-shell {
+    padding: 16px;
+  }
+
+  .app-shell .layout {
+    display: block;
+  }
+
+  .app-shell .panel {
+    padding: 18px;
+  }
+}

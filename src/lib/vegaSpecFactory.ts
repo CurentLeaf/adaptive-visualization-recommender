@@ -7,17 +7,70 @@ type Datum = Report & {
   uncertainty_upper: number | null;
   salience: number;
 };
-const tooltipFor = (fields: string[]) => fields.map((field) => ({ field }));
+const tooltipFor = (fields: string[]) =>
+  fields.map((field) => ({ field, title: field.replaceAll('_', ' ') }));
+const compactSource = (name: string) =>
+  name
+    .replace('Observation Team ', 'Team ')
+    .replace('Imagery Review Desk', 'Imagery desk')
+    .replace('Field Report Liaison', 'Field liaison')
+    .replace('Translation Review Desk', 'Translation desk')
+    .replace('Community Contact Network', 'Community network');
+const reportAxis = {
+  field: 'chart_label',
+  type: 'nominal',
+  title: null,
+  sort: { field: 'chart_order', order: 'ascending' },
+  axis: { labelLimit: 200, labelPadding: 12 },
+};
 const base = (data: Datum[]) => ({
   $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
-  data: { values: data },
+  data: {
+    values: data.map((row, index) => ({
+      ...row,
+      chart_order: index,
+      chart_label: `${String(index + 1).padStart(2, '0')} · ${compactSource(row.source_display_name ?? row.source_id)} · ${row.observed_at.slice(11, 16)}`,
+    })),
+  },
   width: 'container',
-  height: 280,
-  background: '#ffffff',
+  height: 300,
+  padding: { top: 16, right: 24, bottom: 14, left: 8 },
+  autosize: { type: 'fit-x', contains: 'padding' },
+  background: '#101827',
   config: {
+    font: 'Inter, system-ui, sans-serif',
     view: { stroke: null },
-    axis: { labelColor: '#334155', titleColor: '#334155', gridColor: '#e2e8f0' },
-    legend: { labelColor: '#334155' },
+    axis: {
+      labelColor: '#cbd5e1',
+      titleColor: '#e2e8f0',
+      gridColor: '#263448',
+      domainColor: '#475569',
+      tickColor: '#475569',
+      labelFontSize: 12,
+      titleFontSize: 12,
+      titleFontWeight: 500,
+      titlePadding: 16,
+      labelPadding: 8,
+      labelLimit: 160,
+      labelOverlap: true,
+      tickCount: 5,
+    },
+    axisX: { labelAngle: 0 },
+    axisY: { minExtent: 36 },
+    legend: {
+      labelColor: '#cbd5e1',
+      titleColor: '#e2e8f0',
+      orient: 'bottom',
+      labelFontSize: 12,
+      labelLimit: 220,
+      columns: 2,
+      rowPadding: 8,
+      padding: 12,
+    },
+    range: {
+      category: ['#5eead4', '#93c5fd', '#fbbf24', '#c4b5fd', '#fda4af', '#67e8f9', '#bef264'],
+    },
+    text: { color: '#e2e8f0', fontSize: 12 },
   },
 });
 export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<string, unknown> {
@@ -25,14 +78,14 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'observation_timeline')
     return {
       ...common,
-      height: Math.max(180, data.length * 42),
+      height: Math.max(220, data.length * 44),
       layer: [
         {
           mark: { type: 'rule', stroke: '#64748b', strokeWidth: 2 },
           encoding: {
             x: { field: 'observed_at', type: 'temporal', title: 'Cedar Watch exercise time' },
             x2: { field: 'received_at' },
-            y: { field: 'report_title', type: 'nominal', title: 'Reported observation' },
+            y: reportAxis,
             tooltip: [
               { field: 'report_title', title: 'Report' },
               { field: 'source_display_name', title: 'Source' },
@@ -43,18 +96,16 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
           },
         },
         {
-          transform: [
-            { fold: ['observed_at', 'received_at'], as: ['time_type', 'time_value'] },
-          ],
+          transform: [{ fold: ['observed_at', 'received_at'], as: ['time_type', 'time_value'] }],
           mark: { type: 'point', filled: true, size: 90 },
           encoding: {
             x: { field: 'time_value', type: 'temporal', title: 'Cedar Watch exercise time' },
-            y: { field: 'report_title', type: 'nominal', title: 'Reported observation' },
+            y: reportAxis,
             color: {
               field: 'time_type',
               type: 'nominal',
               title: 'Time',
-              scale: { domain: ['observed_at', 'received_at'], range: ['#2563eb', '#b45309'] },
+              scale: { domain: ['observed_at', 'received_at'], range: ['#5eead4', '#fbbf24'] },
             },
             tooltip: [
               { field: 'report_title', title: 'Report' },
@@ -92,7 +143,13 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
           field: 'dimension',
           type: 'ordinal',
           sort: dimensions,
-          title: 'Evidence dimension (axis order is meaningful)',
+          title: 'Evidence dimension',
+          axis: {
+            labelAngle: -20,
+            labelLimit: 115,
+            labelExpr:
+              "datum.label === 'source_confidence' ? 'Confidence' : datum.label === 'validation_score' ? 'Validation' : datum.label === 'corroboration_count' ? 'Corroboration' : datum.label === 'conflict_score' ? 'Conflict' : datum.label === 'report_age_hours' ? 'Report age' : 'Missingness'",
+          },
         },
         y: {
           field: 'normalized_value',
@@ -114,18 +171,27 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'bar')
     return {
       ...common,
-      mark: { type: 'bar', color: '#4666a7' },
+      height: Math.max(220, new Set(data.map((row) => row.observation_type)).size * 44),
+      mark: { type: 'bar', color: '#5eead4', cornerRadiusEnd: 4, height: 24 },
       encoding: {
-        x: { field: 'observation_type', type: 'nominal', title: 'Observation type' },
-        y: { aggregate: 'count', type: 'quantitative', title: 'Number of reports' },
+        y: { field: 'observation_type', type: 'nominal', title: null, axis: { labelLimit: 180 } },
+        x: {
+          aggregate: 'count',
+          type: 'quantitative',
+          title: 'Number of reports',
+          axis: { tickMinStep: 1 },
+        },
         color: {
           aggregate: 'max',
           field: 'is_selected',
           type: 'nominal',
-          scale: { domain: [false, true], range: ['#4666a7', '#b42318'] },
+          scale: { domain: [false, true], range: ['#5eead4', '#fbbf24'] },
           legend: null,
         },
-        tooltip: [{ field: 'observation_type' }, { aggregate: 'count', title: 'Number of reports' }],
+        tooltip: [
+          { field: 'observation_type' },
+          { aggregate: 'count', title: 'Number of reports' },
+        ],
       },
     };
   if (pattern === 'line' || pattern === 'error_band' || pattern === 'area')
@@ -141,8 +207,9 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
                   x: {
                     field: 'observed_at',
                     type: 'temporal',
-                    timeUnit: 'hours',
-                    title: 'Cedar Watch exercise hour',
+                    timeUnit: 'yearmonthdatehours',
+                    title: 'Observation hour',
+                    axis: { format: '%b %d, %H:%M', tickCount: 5 },
                   },
                   y: {
                     aggregate: 'mean',
@@ -152,7 +219,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
                   },
                   y2: { aggregate: 'mean', field: 'uncertainty_upper' },
                   tooltip: [
-                    { field: 'observed_at', type: 'temporal', timeUnit: 'hours' },
+                    { field: 'observed_at', type: 'temporal', timeUnit: 'yearmonthdatehours' },
                     { aggregate: 'mean', field: 'uncertainty_lower', title: 'Mean lower bound' },
                     { aggregate: 'mean', field: 'uncertainty_upper', title: 'Mean upper bound' },
                   ],
@@ -161,21 +228,22 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
             ]
           : []),
         {
-          mark: { type: pattern === 'area' ? 'area' : 'line', point: true, color: '#345e9b' },
+          mark: { type: pattern === 'area' ? 'area' : 'line', point: true, color: '#5eead4' },
           encoding: {
             x: {
               field: 'observed_at',
               type: 'temporal',
-              timeUnit: 'hours',
-              title: 'Cedar Watch exercise hour',
+              timeUnit: 'yearmonthdatehours',
+              title: 'Observation hour',
+              axis: { format: '%b %d, %H:%M', tickCount: 5 },
             },
             y: {
               aggregate: 'count',
               type: 'quantitative',
-              title: 'Number of reports (not amount of activity)',
+              title: 'Number of reports',
             },
             tooltip: [
-              { field: 'observed_at', type: 'temporal', timeUnit: 'hours' },
+              { field: 'observed_at', type: 'temporal', timeUnit: 'yearmonthdatehours' },
               { aggregate: 'count', title: 'Number of reports' },
             ],
           },
@@ -206,11 +274,15 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
           type: 'quantitative',
           title: pattern === 'map' ? 'Fictional grid Y (0–100)' : 'Validation score',
         },
-        color: { field: 'observation_type', type: 'nominal', scale: { scheme: 'tableau10' } },
+        color: {
+          field: 'observation_type',
+          type: 'nominal',
+          scale: { range: ['#5eead4', '#93c5fd', '#fbbf24', '#c4b5fd', '#fda4af'] },
+        },
         shape: { field: 'verification_label', type: 'nominal', title: 'Verification status' },
         stroke: {
-          condition: { test: 'datum.is_selected', value: '#b42318' },
-          value: '#ffffff',
+          condition: { test: 'datum.is_selected', value: '#fbbf24' },
+          value: '#101827',
         },
         strokeWidth: { condition: { test: 'datum.is_selected', value: 3 }, value: 0.5 },
         opacity: { condition: { test: 'datum.is_selected', value: 1 }, value: 0.55 },
@@ -239,22 +311,33 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'heatmap')
     return {
       ...common,
-      mark: 'rect',
+      height: Math.max(220, new Set(data.map((row) => row.source_id)).size * 44),
+      mark: { type: 'rect', cornerRadius: 3, strokeWidth: 2 },
       encoding: {
-        x: { field: 'source_display_name', type: 'nominal', title: 'Reporting source' },
-        y: { field: 'item_type', type: 'nominal', title: 'Reported item type' },
+        y: {
+          field: 'source_display_name',
+          type: 'nominal',
+          title: null,
+          axis: { labelLimit: 200 },
+        },
+        x: {
+          field: 'item_type',
+          type: 'nominal',
+          title: 'Reported item type',
+          axis: { labelLimit: 140 },
+        },
         color: {
           aggregate: 'mean',
           field: 'conflict_score',
           type: 'quantitative',
           title: 'Mean conflict',
-          scale: { scheme: 'blues' },
+          scale: { range: ['#193947', '#5eead4'], domain: [0, 1] },
         },
         stroke: {
           aggregate: 'max',
           field: 'is_selected',
           type: 'nominal',
-          scale: { domain: [false, true], range: ['#ffffff', '#b42318'] },
+          scale: { domain: [false, true], range: ['#101827', '#fbbf24'] },
           legend: null,
         },
         tooltip: [
@@ -267,6 +350,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'error_bar')
     return {
       ...common,
+      height: Math.max(220, data.length * 44),
       layer: [
         {
           mark: 'rule',
@@ -277,10 +361,10 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
               title: 'Source-reported quantity range (not statistical interval)',
             },
             x2: { field: 'reported_count_upper' },
-            y: { field: 'report_title', type: 'nominal', sort: '-x' },
+            y: reportAxis,
             color: {
-              condition: { test: 'datum.is_selected', value: '#b42318' },
-              value: '#345e9b',
+              condition: { test: 'datum.is_selected', value: '#fbbf24' },
+              value: '#5eead4',
             },
             tooltip: tooltipFor([
               'report_title',
@@ -292,13 +376,13 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
           },
         },
         {
-          mark: { type: 'point', color: '#345e9b', filled: true },
+          mark: { type: 'point', color: '#5eead4', filled: true },
           encoding: {
             x: { field: 'reported_count', type: 'quantitative', title: 'Reported quantity' },
-            y: { field: 'report_title', type: 'nominal', sort: '-x' },
+            y: reportAxis,
             color: {
-              condition: { test: 'datum.is_selected', value: '#b42318' },
-              value: '#345e9b',
+              condition: { test: 'datum.is_selected', value: '#fbbf24' },
+              value: '#5eead4',
             },
             size: { condition: { test: 'datum.is_selected', value: 120 }, value: 55 },
             tooltip: tooltipFor([
@@ -315,37 +399,47 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'table_detail') {
     return {
       ...common,
+      width: { step: 170 },
+      height: Math.max(220, data.length * 44),
+      autosize: { type: 'pad' },
       transform: [
         {
           fold: [
-            'report_title',
             'source_display_name',
-            'event_id',
-            'location_name',
-            'item_type',
             'reported_count',
             'count_unit',
-            'observed_at',
-            'received_at',
-            'actor_attribution_status',
-            'source_confidence',
-            'validation_score',
-            'conflict_score',
+            'count_precision',
             'human_verified',
-            'anomaly_score',
           ],
           as: ['field', 'value'],
         },
+        { calculate: "isValid(datum.value) ? datum.value : 'Unknown'", as: 'display_value' },
       ],
-      mark: { type: 'text', align: 'left', dx: 4 },
+      mark: { type: 'text', align: 'left', dx: -76, limit: 155 },
       encoding: {
-        x: { field: 'field', type: 'nominal', title: 'Reported observation detail' },
-        y: { field: 'report_title', type: 'nominal', title: 'Reported observation' },
-        text: { field: 'value', type: 'nominal' },
+        x: {
+          field: 'field',
+          type: 'nominal',
+          sort: [
+            'source_display_name',
+            'reported_count',
+            'count_unit',
+            'count_precision',
+            'human_verified',
+          ],
+          title: null,
+          axis: {
+            orient: 'top',
+            labelExpr:
+              "datum.label === 'source_display_name' ? 'Source' : datum.label === 'reported_count' ? 'Quantity' : datum.label === 'count_unit' ? 'Unit' : datum.label === 'count_precision' ? 'Precision' : 'Human verified'",
+          },
+        },
+        y: reportAxis,
+        text: { field: 'display_value', type: 'nominal' },
         detail: { field: 'report_id' },
         color: {
-          condition: { test: 'datum.is_selected', value: '#b42318' },
-          value: '#334155',
+          condition: { test: 'datum.is_selected', value: '#fbbf24' },
+          value: '#e2e8f0',
         },
         tooltip: [
           { field: 'report_title', title: 'Reported observation' },
@@ -364,8 +458,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
         {
           transform: [
             {
-              filter:
-                'isValid(datum.reported_count_lower) && isValid(datum.reported_count_upper)',
+              filter: 'isValid(datum.reported_count_lower) && isValid(datum.reported_count_upper)',
             },
           ],
           mark: { type: 'rule', strokeWidth: 4, opacity: 0.65 },
@@ -376,7 +469,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
               title: `${data[0]?.count_unit ?? 'Reported quantity'} (source-reported bounds)`,
             },
             x2: { field: 'reported_count_upper' },
-            y: { field: 'report_title', type: 'nominal', title: 'Reported observation' },
+            y: reportAxis,
             color: { field: 'source_display_name', type: 'nominal', title: 'Source' },
             tooltip: tooltipFor([
               'report_title',
@@ -397,11 +490,11 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
               type: 'quantitative',
               title: `${data[0]?.count_unit ?? 'Reported quantity'} (not summed)`,
             },
-            y: { field: 'report_title', type: 'nominal', title: 'Reported observation' },
+            y: reportAxis,
             color: { field: 'source_display_name', type: 'nominal', title: 'Source' },
             stroke: {
-              condition: { test: 'datum.is_selected', value: '#b42318' },
-              value: '#ffffff',
+              condition: { test: 'datum.is_selected', value: '#fbbf24' },
+              value: '#101827',
             },
             strokeWidth: { condition: { test: 'datum.is_selected', value: 3 }, value: 1 },
             tooltip: tooltipFor([
@@ -425,13 +518,13 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
         as: 'verification_label',
       },
     ],
-    mark: { type: 'point', filled: true, color: '#4666a7', size: 90 },
+    mark: { type: 'point', filled: true, color: '#5eead4', size: 90 },
     encoding: {
       x: { field: 'source_confidence', type: 'quantitative', title: 'Source confidence' },
       y: { field: 'conflict_score', type: 'quantitative', title: 'Conflict score' },
       color: {
-        condition: { test: 'datum.is_selected', value: '#b42318' },
-        value: '#4666a7',
+        condition: { test: 'datum.is_selected', value: '#fbbf24' },
+        value: '#5eead4',
       },
       shape: {
         field: 'verification_label',

@@ -114,14 +114,14 @@ export function filterByDimensionRanges<T extends object>(
 }
 
 const palette = [
-  '#345e9b',
-  '#b45309',
-  '#047857',
-  '#7c3aed',
-  '#be123c',
-  '#0e7490',
-  '#4d7c0f',
-  '#a21caf',
+  '#7dd3fc',
+  '#fbbf24',
+  '#5eead4',
+  '#c4b5fd',
+  '#fda4af',
+  '#67e8f9',
+  '#bef264',
+  '#f0abfc',
 ];
 const colorFor = (id: string) => {
   let hash = 0;
@@ -155,11 +155,11 @@ export function ParallelCoordinates({
     const selected = records.find((record) => record.report_id === selectedId);
     return selected && !compact.includes(selected) ? [...compact.slice(0, 11), selected] : compact;
   }, [audience, records, selectedId]);
-  const width = 900;
-  const height = 330;
-  const left = 48;
-  const right = width - 30;
-  const top = 35;
+  const width = 1000;
+  const height = 360;
+  const left = 85;
+  const right = width - 85;
+  const top = 45;
   const bottom = height - 55;
   const xAt = (index: number) => left + (right - left) * (index / Math.max(1, visible.length - 1));
   const yAt = (normalized: number) => bottom - normalized * (bottom - top);
@@ -287,7 +287,20 @@ export function ParallelCoordinates({
                 {dimension.label}
               </text>
               <text x={x} y={bottom + 20} textAnchor="middle" className="axis-direction">
-                {dimension.direction}
+                <title>{dimension.direction}</title>↑{' '}
+                {dimension.field === 'source_confidence'
+                  ? 'More confidence'
+                  : dimension.field === 'validation_score'
+                    ? 'More validation'
+                    : dimension.field === 'corroboration_count'
+                      ? 'More support'
+                      : dimension.field === 'conflict_score'
+                        ? 'More conflict'
+                        : dimension.field === 'report_age_hours'
+                          ? 'Older report'
+                          : dimension.field === 'missingness_score'
+                            ? 'More missing data'
+                            : 'More anomalous'}
               </text>
               <text x={x} y={bottom + 36} textAnchor="middle" className="axis-direction">
                 Normalized 0–1 · raw unit: {dimension.unit}
@@ -316,9 +329,9 @@ export function ParallelCoordinates({
               key={record.report_id}
               d={path}
               fill="none"
-              stroke={selected ? '#b42318' : colorFor(record.report_id)}
+              stroke={selected ? '#fbbf24' : colorFor(record.report_id)}
               strokeWidth={selected ? 3.5 : 1.5}
-              opacity={selected ? 1 : 0.28}
+              opacity={selected ? 1 : 0.5}
               tabIndex={0}
               role="button"
               aria-pressed={selected}
@@ -437,7 +450,9 @@ export function ReportTable({
                       ? `Approximately ${record.reported_count} ${record.count_unit}`
                       : `${record.reported_count} ${record.count_unit} as reported`}
               </td>
-              <td>{record.observed_at.slice(0, 10)} {record.observed_at.slice(11, 16)}</td>
+              <td>
+                {record.observed_at.slice(0, 10)} {record.observed_at.slice(11, 16)}
+              </td>
               <td>{Math.round(record.source_confidence * 100)}%</td>
               <td>{record.validation_status.replaceAll('_', ' ')}</td>
               <td>{Math.round(record.conflict_score * 100)}%</td>

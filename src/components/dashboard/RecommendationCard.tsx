@@ -33,28 +33,28 @@ function Preview({ pattern }: { pattern: VisualizationRecommendation['chartPatte
       <path d="M16 8v50h152" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
       {focus === 'Trend' ? (
         <>
-          <path d="M23 47 55 38 84 43 112 23 157 16" fill="none" stroke="#315f9d" strokeWidth="3" />
+          <path d="M23 47 55 38 84 43 112 23 157 16" fill="none" stroke="#5eead4" strokeWidth="3" />
           <path
             d="M23 54 55 44 84 51 112 31 157 25"
             fill="none"
-            stroke="#93b7dd"
+            stroke="#94a3b8"
             strokeWidth="1.5"
             strokeDasharray="4 3"
           />
         </>
       ) : focus === 'Spatial pattern' ? (
         <>
-          <circle cx="52" cy="40" r="5" fill="#315f9d" />
-          <circle cx="78" cy="25" r="5" fill="#5283b7" />
-          <circle cx="108" cy="45" r="5" fill="#b97712" />
-          <circle cx="139" cy="19" r="5" fill="#315f9d" />
+          <circle cx="52" cy="40" r="5" fill="#5eead4" />
+          <circle cx="78" cy="25" r="5" fill="#7dd3fc" />
+          <circle cx="108" cy="45" r="5" fill="#fbbf24" />
+          <circle cx="139" cy="19" r="5" fill="#5eead4" />
         </>
       ) : focus === 'Uncertainty and evidence' ? (
         <>
           {[42, 73, 104, 135].map((x, index) => (
             <g key={x}>
-              <path d={`M${x} ${18 + (index % 2) * 8}v28`} stroke="#7e9fbe" strokeWidth="3" />
-              <circle cx={x} cy={31 + (index % 2) * 8} r="4" fill="#315f9d" />
+              <path d={`M${x} ${18 + (index % 2) * 8}v28`} stroke="#94a3b8" strokeWidth="3" />
+              <circle cx={x} cy={31 + (index % 2) * 8} r="4" fill="#5eead4" />
             </g>
           ))}
         </>
@@ -62,8 +62,8 @@ function Preview({ pattern }: { pattern: VisualizationRecommendation['chartPatte
         <>
           {[24, 54, 87, 119, 151].map((x, index) => (
             <g key={x}>
-              <path d={`M${x} 20v30`} stroke="#cbd5e1" strokeWidth="2" />
-              <circle cx={x} cy={index % 2 ? 37 : 23} r="4" fill="#315f9d" />
+              <path d={`M${x} 20v30`} stroke="#475569" strokeWidth="2" />
+              <circle cx={x} cy={index % 2 ? 37 : 23} r="4" fill="#5eead4" />
             </g>
           ))}
         </>
@@ -77,7 +77,7 @@ function Preview({ pattern }: { pattern: VisualizationRecommendation['chartPatte
               width="9"
               height={38 - ((index * 7) % 19)}
               rx="2"
-              fill={index === 2 ? '#b97712' : '#5283b7'}
+              fill={index === 2 ? '#fbbf24' : '#7dd3fc'}
             />
           ))}
         </>
