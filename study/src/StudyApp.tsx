@@ -5,8 +5,11 @@ import { EvidencePanel } from '../../src/components/details/EvidencePanel';
 import { SCENARIOS } from '../../src/domain/constants';
 import {
   assignTrials,
+  clearTrialDraft,
   clearSession,
   downloadExport,
+  emptyTrialDraft,
+  loadTrialDraft,
   loadSession,
   PROTOCOL_VERSION,
   RESPONSE_SCHEMA_VERSION,
@@ -15,12 +18,15 @@ import {
   sessionExportJson,
   STIMULUS_SEED,
   STIMULUS_VERSION,
+  STUDY_UI_VERSION,
+  saveTrialDraft,
   type PilotSession,
   type StudyCondition,
+  type TrialDraft,
   type TrialRecord,
 } from './protocol';
 import { getQuestion } from './questions';
-import { getScenarioView, sourceCommit } from './studyModel';
+import { containsTextMark, getScenarioView, sourceCommit } from './studyModel';
 
 type Stage = 'introduction' | 'consent' | 'practice' | 'trial' | 'survey' | 'debrief' | 'declined' | 'exited' | 'saved';
 
@@ -31,6 +37,8 @@ const anonymousId = (prefix: string) => {
 };
 
 const noQuestionAnswer = (value: string) => value === '';
+const isRatingValue = (value: string): value is TrialDraft['confidence'] =>
+  ['', '1', '2', '3', '4', '5'].some((rating) => rating === value);
 const conditionLabel: Record<StudyCondition, string> = {
   baseline: 'Evidence-only view',
   recommended: 'Task-aware recommended view',
@@ -62,28 +70,44 @@ export function StudyApp({
   const [consentChecked, setConsentChecked] = useState(false);
   const [practiceAnswer, setPracticeAnswer] = useState('');
   const [practiceFeedback, setPracticeFeedback] = useState('');
-  const [selectedReportId, setSelectedReportId] = useState('');
-  const [selectedVisualizationId, setSelectedVisualizationId] = useState('');
-  const [answerKind, setAnswerKind] = useState<'choice' | 'unknown' | null>(null);
-  const [answerId, setAnswerId] = useState('');
-  const [confidence, setConfidence] = useState('');
-  const [difficulty, setDifficulty] = useState('');
-  const [interactions, setInteractions] = useState<TrialRecord['evidenceInteractions']>([]);
+  const [draftState, setDraftState] = useState<{ key: string; draft: TrialDraft } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const activeMilliseconds = useRef(0);
   const visibleSince = useRef<number | null>(null);
   const visibilityInterruptions = useRef(0);
+  const submittedDraftKey = useRef<string | null>(null);
+  const trialHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const assignment = session ? assignTrials(session.participantId) : null;
   const trial = assignment && session ? assignment.trials[session.responses.length] : undefined;
   const trialId = trial?.trialId;
+  const activeSessionId = session?.sessionId;
   const scenarioView = trial ? getScenarioView(trial.scenarioFamily) : undefined;
   const question = trial ? getQuestion(trial.scenarioFamily, trial.taskVariant) : undefined;
+  const activeDraftKey =
+    session && trial ? `${session.sessionId}/${trial.trialId}` : null;
+  const activeDraft = useMemo(() => {
+    if (!session || !trial || !activeDraftKey) return null;
+    if (draftState?.key === activeDraftKey) return draftState.draft;
+    return (
+      loadTrialDraft(session.sessionId, trial.trialId) ??
+      emptyTrialDraft(
+        session.sessionId,
+        trial.trialId,
+        trial.condition === 'recommended'
+          ? getScenarioView(trial.scenarioFamily).recommendations[0]?.id ?? ''
+          : 'report-comparison-table',
+      )
+    );
+  }, [activeDraftKey, draftState, session, trial]);
+  const draftRef = useRef(activeDraft);
+  draftRef.current = activeDraft;
+  const selectedReportId = activeDraft?.selectedReportId ?? '';
+  const selectedVisualizationId = activeDraft?.selectedVisualizationId ?? '';
   const selectedReport = scenarioView?.reports.find((report) => report.report_id === selectedReportId);
   const selectedVisualization =
     scenarioView?.recommendations.find((recommendation) => recommendation.id === selectedVisualizationId) ??
     scenarioView?.recommendations[0];
-  const defaultVisualizationId = scenarioView?.recommendations[0]?.id;
   const sourceMap = useMemo(
     () => new Map(scenarioView?.data.sources.map((source) => [source.source_id, source]) ?? []),
     [scenarioView],
@@ -101,44 +125,85 @@ export function StudyApp({
     [scenarioView],
   );
 
+  const updateDraft = (patch: Partial<TrialDraft>) => {
+    if (!session || !trial || !activeDraftKey || !activeDraft) return;
+    const updated = { ...activeDraft, ...patch };
+    try {
+      saveTrialDraft(updated);
+      setDraftState({ key: activeDraftKey, draft: updated });
+      draftRef.current = updated;
+      setStatusMessage('');
+    } catch {
+      setStatusMessage(
+        'This browser could not save the local trial draft. Export or stop before leaving this trial.',
+      );
+    }
+  };
+
   useEffect(() => {
-    if (stage !== 'trial' || trialId === undefined) return;
-    activeMilliseconds.current = 0;
-    visibilityInterruptions.current = 0;
+    if (stage !== 'trial' || trialId === undefined || !activeSessionId || !activeDraftKey) return;
+    const currentKey = activeDraftKey;
+    const currentTrialId = trialId;
+    const sessionId = activeSessionId;
+    const startedDraft = draftRef.current;
+    activeMilliseconds.current = startedDraft?.activeTrialTimeMs ?? 0;
+    visibilityInterruptions.current = startedDraft?.visibilityInterruptions ?? 0;
     visibleSince.current = document.hidden ? null : Date.now();
+    if (submittedDraftKey.current !== currentKey) submittedDraftKey.current = null;
+    const persistTiming = () => {
+      const current = draftRef.current;
+      if (!current || current.trialId !== currentTrialId || submittedDraftKey.current === currentKey)
+        return;
+      const updated = {
+        ...current,
+        activeTrialTimeMs: Math.max(
+          0,
+          Math.round(
+            activeMilliseconds.current +
+              (visibleSince.current === null ? 0 : Date.now() - visibleSince.current),
+          ),
+        ),
+        visibilityInterruptions: visibilityInterruptions.current,
+      };
+      try {
+        saveTrialDraft(updated);
+        setDraftState({ key: currentKey, draft: updated });
+        draftRef.current = updated;
+      } catch {
+        setStatusMessage(
+          `This browser could not save the local trial draft for ${sessionId}. Export or stop before leaving this trial.`,
+        );
+      }
+    };
     const updateVisibility = () => {
       if (document.hidden) {
         if (visibleSince.current !== null) {
           activeMilliseconds.current += Date.now() - visibleSince.current;
           visibleSince.current = null;
           visibilityInterruptions.current += 1;
+          persistTiming();
         }
       } else if (visibleSince.current === null) {
         visibleSince.current = Date.now();
       }
     };
     document.addEventListener('visibilitychange', updateVisibility);
+    window.addEventListener('pagehide', persistTiming);
+    const focusTrial = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      trialHeadingRef.current?.focus({ preventScroll: true });
+    });
     return () => {
       document.removeEventListener('visibilitychange', updateVisibility);
+      window.removeEventListener('pagehide', persistTiming);
+      window.cancelAnimationFrame(focusTrial);
       if (visibleSince.current !== null) {
         activeMilliseconds.current += Date.now() - visibleSince.current;
         visibleSince.current = null;
       }
+      persistTiming();
     };
-  }, [stage, trialId]);
-
-  useEffect(() => {
-    if (trialId !== undefined) {
-      setSelectedReportId('');
-      setSelectedVisualizationId(defaultVisualizationId ?? '');
-      setAnswerKind(null);
-      setAnswerId('');
-      setConfidence('');
-      setDifficulty('');
-      setInteractions([]);
-      setStatusMessage('');
-    }
-  }, [trialId, defaultVisualizationId]);
+  }, [stage, trialId, activeSessionId, activeDraftKey]);
 
   useEffect(() => {
     if (session) onSessionChange?.(session);
@@ -165,6 +230,7 @@ export function StudyApp({
     const initial: PilotSession = {
       schemaVersion: RESPONSE_SCHEMA_VERSION,
       protocolVersion: PROTOCOL_VERSION,
+      uiVersion: STUDY_UI_VERSION,
       participantId,
       sessionId: anonymousId('S'),
       consentAccepted: true,
@@ -188,8 +254,16 @@ export function StudyApp({
     activeMilliseconds.current +
     (visibleSince.current === null ? 0 : Date.now() - visibleSince.current);
 
-  const track = (type: 'report_select' | 'visualization_select', value: string) => {
-    setInteractions((existing) => [...existing, { type, value, elapsedMs: elapsedActiveMs() }]);
+  const track = (
+    type: 'report_select' | 'visualization_select',
+    value: string,
+    patch: Partial<TrialDraft> = {},
+  ) => {
+    if (!activeDraft) return;
+    updateDraft({
+      ...patch,
+      interactions: [...activeDraft.interactions, { type, value, elapsedMs: elapsedActiveMs() }],
+    });
   };
 
   const submitTrial = () => {
@@ -197,10 +271,11 @@ export function StudyApp({
       !session ||
       !trial ||
       !question ||
-      answerKind === null ||
-      (answerKind === 'choice' && noQuestionAnswer(answerId)) ||
-      !confidence ||
-      !difficulty
+      !activeDraft ||
+      activeDraft.answerKind === null ||
+      (activeDraft.answerKind === 'choice' && noQuestionAnswer(activeDraft.answerId)) ||
+      !activeDraft.confidence ||
+      !activeDraft.difficulty
     ) {
       return;
     }
@@ -215,13 +290,19 @@ export function StudyApp({
       selectedVisualization:
         trial.condition === 'baseline'
           ? 'report-comparison-table'
-          : (selectedVisualization?.id ?? 'unavailable'),
-      selectedReports: [...new Set(interactions.filter((event) => event.type === 'report_select').map((event) => event.value))],
-      evidenceInteractions: interactions,
-      answerKind,
-      answerId: answerKind === 'unknown' ? null : answerId,
-      confidence: Number(confidence),
-      perceivedDifficulty: Number(difficulty),
+          : (activeDraft.selectedVisualizationId || selectedVisualization?.id || 'unavailable'),
+      selectedReports: [
+        ...new Set(
+          activeDraft.interactions
+            .filter((event) => event.type === 'report_select')
+            .map((event) => event.value),
+        ),
+      ],
+      evidenceInteractions: activeDraft.interactions,
+      answerKind: activeDraft.answerKind,
+      answerId: activeDraft.answerKind === 'unknown' ? null : activeDraft.answerId,
+      confidence: Number(activeDraft.confidence),
+      perceivedDifficulty: Number(activeDraft.difficulty),
       activeTrialTimeMs: Math.max(0, Math.round(elapsedActiveMs())),
       visibilityInterruptions: visibilityInterruptions.current,
     };
@@ -230,6 +311,10 @@ export function StudyApp({
       responses: [...session.responses, updatedTrial],
     };
     if (!commitSession(next)) return;
+    if (activeDraftKey && session) {
+      submittedDraftKey.current = activeDraftKey;
+      clearTrialDraft(session.sessionId, trial.trialId);
+    }
     if (next.responses.length === 10) setStage('survey');
   };
 
@@ -453,10 +538,25 @@ export function StudyApp({
     return (
       <main className="study-shell study-trial">
         <header className="study-header">
-          <p className="study-kicker">Experimental trial {session.responses.length + 1} of 10</p>
-          <h1>{SCENARIOS[trial.scenarioFamily].label}</h1>
-          <p>{SCENARIOS[trial.scenarioFamily].description}</p>
+          <p className="study-kicker">
+            {STUDY_UI_VERSION} · Trial {session.responses.length + 1} of 10
+          </p>
+          <h1 ref={trialHeadingRef} tabIndex={-1}>
+            {question.prompt}
+          </h1>
+          <p>
+            <strong>Scenario:</strong> {SCENARIOS[trial.scenarioFamily].label}
+          </p>
           <p className="condition-label">{conditionLabel[trial.condition]}</p>
+          <p className="condition-explanation">
+            {trial.condition === 'baseline'
+              ? 'This evidence-only view presents the fixed report table, timeline, fictional grid, and inspector without a task-aware chart recommendation.'
+              : 'This task-aware view adds the recommender’s selected chart and rationale. The same source reports, uncertainty, and evidence inspector are available in both conditions.'}
+          </p>
+          <section className="study-card" aria-labelledby="scenario-context-heading">
+            <h2 id="scenario-context-heading">1. Scenario context</h2>
+            <p>{SCENARIOS[trial.scenarioFamily].description}</p>
+          </section>
         </header>
         <p className="study-notice">
           Use only the reports shown. Missing values are not zero; repeated or derived reports are
@@ -465,10 +565,13 @@ export function StudyApp({
         </p>
         {trial.condition === 'recommended' && (
           <section className="study-card" aria-label="Task-aware recommendation">
-            <h2>Recommendation for this task</h2>
+            <h2>2. Recommendation for this task</h2>
             {selectedVisualization && (
               <>
-                <p><strong>{selectedVisualization.title}</strong> · {selectedVisualization.technique}</p>
+                <p className="selected-chart-label">
+                  <strong>Selected chart:</strong> {selectedVisualization.title} ·{' '}
+                  {selectedVisualization.technique}
+                </p>
                 <p>{selectedVisualization.rationale.join(' ')}</p>
                 <p className="study-caution">{selectedVisualization.doesNotEstablish}</p>
                 <label className="study-field">
@@ -476,8 +579,9 @@ export function StudyApp({
                   <select
                     value={selectedVisualization.id}
                     onChange={(event) => {
-                      setSelectedVisualizationId(event.target.value);
-                      track('visualization_select', event.target.value);
+                      track('visualization_select', event.target.value, {
+                        selectedVisualizationId: event.target.value,
+                      });
                     }}
                   >
                     {scenarioView.recommendations.map((recommendation) => (
@@ -487,33 +591,50 @@ export function StudyApp({
                     ))}
                   </select>
                 </label>
-                <VegaChart
-                  spec={selectedVisualization.vegaLiteSpec}
-                  onSelect={(id) => {
-                    setSelectedReportId(id);
-                    track('report_select', id);
-                  }}
-                  ariaLabel={`Task-aware recommended ${selectedVisualization.title}`}
-                />
+                {containsTextMark(selectedVisualization.vegaLiteSpec) ? (
+                  <section aria-label={`Readable table for ${selectedVisualization.title}`}>
+                    <p className="help">
+                      This text-dense recommendation is shown as a readable report table. Select a
+                      report here or in the shared evidence views below.
+                    </p>
+                    <ReportComparisonTable
+                      reports={scenarioView.reports}
+                      sources={scenarioView.data.sources}
+                      selectedId={selectedReportId}
+                      showInternalIds={false}
+                      onSelect={(id) =>
+                        track('report_select', id, { selectedReportId: id })
+                      }
+                    />
+                  </section>
+                ) : (
+                  <VegaChart
+                    spec={selectedVisualization.vegaLiteSpec}
+                    onSelect={(id) =>
+                      track('report_select', id, { selectedReportId: id })
+                    }
+                    ariaLabel={`Task-aware recommended ${selectedVisualization.title}`}
+                  />
+                )}
               </>
             )}
           </section>
         )}
         <section className="study-card">
-          <h2>Available evidence</h2>
+          <h2>{trial.condition === 'recommended' ? '3' : '2'}. Available evidence</h2>
           {trial.condition === 'baseline' && (
             <p>
-              Fixed baseline: report comparison table, observation-to-receipt timeline, and
-              fictional local-grid plot. No recommended chart is shown.
+              Fixed evidence-only view: report comparison table, observation-to-receipt timeline,
+              and fictional local-grid plot. No task-aware chart is shown.
             </p>
           )}
           <ReportComparisonTable
             reports={scenarioView.reports}
             sources={scenarioView.data.sources}
             selectedId={selectedReportId}
+            showInternalIds={false}
             onSelect={(id) => {
-              setSelectedReportId(id);
-              track('report_select', id);
+              track('report_select', id, { selectedReportId: id });
             }}
           />
           <ObservationTimeline
@@ -521,16 +642,14 @@ export function StudyApp({
             sources={scenarioView.data.sources}
             selectedId={selectedReportId}
             onSelect={(id) => {
-              setSelectedReportId(id);
-              track('report_select', id);
+              track('report_select', id, { selectedReportId: id });
             }}
           />
           <FictionalGridPlot
             reports={scenarioView.reports}
             locations={scenarioView.data.locations}
             onSelect={(id) => {
-              setSelectedReportId(id);
-              track('report_select', id);
+              track('report_select', id, { selectedReportId: id });
             }}
           />
         </section>
@@ -547,9 +666,14 @@ export function StudyApp({
           recommendation={trial.condition === 'recommended' ? selectedVisualization : undefined}
           modeling={scenarioView.modeling}
           audience="Analyst"
+          collapseTechnicalDetails
+          showTechnicalIdentifiers={false}
         />
-        <section className="study-card response-card">
-          <h2>{question.prompt}</h2>
+        <section className="study-card response-card" aria-label="Trial response panel">
+          <h2>{trial.condition === 'recommended' ? '4' : '3'}. Your response</h2>
+          <p className="question-repeat">
+            <strong>Question:</strong> {question.prompt}
+          </p>
           <fieldset>
             <legend>Your response</legend>
             {question.options.map((option) => (
@@ -558,10 +682,9 @@ export function StudyApp({
                   type="radio"
                   name="trial-answer"
                   value={option.id}
-                  checked={answerKind === 'choice' && answerId === option.id}
+                  checked={activeDraft?.answerKind === 'choice' && activeDraft.answerId === option.id}
                   onChange={() => {
-                    setAnswerKind('choice');
-                    setAnswerId(option.id);
+                    updateDraft({ answerKind: 'choice', answerId: option.id });
                   }}
                 />
                 <span>{option.label}</span>
@@ -572,10 +695,9 @@ export function StudyApp({
                 type="radio"
                 name="trial-answer"
                 value="unknown"
-                checked={answerKind === 'unknown'}
+                checked={activeDraft?.answerKind === 'unknown'}
                 onChange={() => {
-                  setAnswerKind('unknown');
-                  setAnswerId('');
+                  updateDraft({ answerKind: 'unknown', answerId: '' });
                 }}
               />
               <span>I cannot determine an answer from the available reports.</span>
@@ -584,14 +706,28 @@ export function StudyApp({
           <div className="study-two-fields">
             <label className="study-field">
               <span>Confidence (1 = not confident, 5 = very confident)</span>
-              <select aria-label="Confidence" value={confidence} onChange={(event) => setConfidence(event.target.value)}>
+              <select
+                aria-label="Confidence"
+                value={activeDraft?.confidence ?? ''}
+                onChange={(event) => {
+                  if (isRatingValue(event.target.value))
+                    updateDraft({ confidence: event.target.value });
+                }}
+              >
                 <option value="">Select</option>
                 {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
             <label className="study-field">
               <span>Perceived difficulty (1 = very easy, 5 = very difficult)</span>
-              <select aria-label="Perceived difficulty" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+              <select
+                aria-label="Perceived difficulty"
+                value={activeDraft?.difficulty ?? ''}
+                onChange={(event) => {
+                  if (isRatingValue(event.target.value))
+                    updateDraft({ difficulty: event.target.value });
+                }}
+              >
                 <option value="">Select</option>
                 {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
@@ -600,11 +736,36 @@ export function StudyApp({
           <button
             className="button primary"
             type="button"
-            disabled={answerKind === null || (answerKind === 'choice' && !answerId) || !confidence || !difficulty}
+            aria-describedby={
+              activeDraft?.answerKind === null ||
+              activeDraft === null ||
+              (activeDraft.answerKind === 'choice' && !activeDraft.answerId) ||
+              !activeDraft.confidence ||
+              !activeDraft.difficulty
+                ? 'required-response-help'
+                : undefined
+            }
+            disabled={
+              activeDraft?.answerKind === null ||
+              activeDraft === null ||
+              (activeDraft.answerKind === 'choice' && !activeDraft.answerId) ||
+              !activeDraft.confidence ||
+              !activeDraft.difficulty
+            }
             onClick={submitTrial}
           >
             Record response and continue
           </button>
+          {(activeDraft?.answerKind === null ||
+            activeDraft === null ||
+            (activeDraft.answerKind === 'choice' && !activeDraft.answerId) ||
+            !activeDraft.confidence ||
+            !activeDraft.difficulty) && (
+            <p className="help" id="required-response-help">
+              Choose a response (or “I cannot determine”), confidence, and perceived difficulty to
+              continue.
+            </p>
+          )}
           {statusMessage && <p role="alert">{statusMessage}</p>}
           <button className="button ghost" type="button" onClick={() => setStage('exited')}>
             Save and exit this draft session

@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "node --test ./e2e/rehearsal.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.1.18",

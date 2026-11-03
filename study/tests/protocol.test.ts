@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { getQuestion } from '../src/questions';
 import {
   assignTrials,
+  clearSession,
+  emptyTrialDraft,
+  loadTrialDraft,
   loadSession,
   RESPONSE_SCHEMA_VERSION,
   saveSession,
   sessionExportCsv,
   sessionExportJson,
+  saveTrialDraft,
   STORAGE_KEY,
   type PilotSession,
   type TrialRecord,
@@ -90,6 +94,7 @@ describe('pilot assignment, response validation, and local export', () => {
       answerId: null,
       visibilityInterruptions: 1,
     });
+
     const json = sessionExportJson(saved);
     expect(JSON.parse(json).sessions[0].responses[0]).toMatchObject({
       answerKind: 'unknown',
@@ -101,6 +106,34 @@ describe('pilot assignment, response validation, and local export', () => {
     expect(csv).toContain(JSON.stringify(session.assignedOrder).replaceAll('"', '""'));
     expect(csv).toContain('unknown,');
     expect(localStorage.getItem(STORAGE_KEY)).toContain('"answerId":null');
+  });
+
+  it('keeps validated per-trial drafts separate from submitted responses and clears them explicitly', () => {
+    const session = createSession('participant-draft');
+    const trial = assignTrials(session.participantId).trials[0];
+    const draft = {
+      ...emptyTrialDraft(session.sessionId, trial.trialId, 'report-comparison-table'),
+      answerKind: 'unknown' as const,
+      confidence: '4' as const,
+      difficulty: '2' as const,
+      interactions: [{ type: 'report_select' as const, value: 'report-1', elapsedMs: 1200 }],
+      activeTrialTimeMs: 1200,
+    };
+    saveSession(session);
+    saveTrialDraft(draft);
+
+    expect(loadTrialDraft(session.sessionId, trial.trialId)).toEqual(draft);
+    expect(JSON.parse(sessionExportJson(session)).sessions[0].responses).toEqual([]);
+    expect(sessionExportCsv(session)).not.toContain('selectedReportId');
+
+    localStorage.setItem(
+      `${STORAGE_KEY}:draft:invalid`,
+      JSON.stringify({ ...draft, answerKind: 'unknown', answerId: 'stale-choice' }),
+    );
+    clearSession();
+    expect(loadSession()).toBeNull();
+    expect(loadTrialDraft(session.sessionId, trial.trialId)).toBeNull();
+    expect(localStorage.getItem(`${STORAGE_KEY}:draft:invalid`)).toBeNull();
   });
 
   it('rejects invalid response combinations before persistence or export', () => {

@@ -4,6 +4,12 @@
 participant collection, or confirmatory research. Investigator, consent, institutional human-subjects,
 storage, and browser-acceptance gates remain open.
 
+The rehearsal UI is versioned as `rehearsal-2026.11.03.1`. It records this optional UI revision in
+new session exports without changing response schema version 1 or invalidating earlier saved
+`draft-1` sessions. Rehearsal changes include question-first trial layout, readable detail-table
+recommendations, and local validated per-trial drafts; unsubmitted drafts are not part of response
+exports.
+
 ## Aim and design
 
 This exploratory pilot compares two evidence displays within each participant. It is intended to
@@ -88,6 +94,17 @@ email, and the lack of promised benefit. It has no investigator contact because 
 It is not a substitute for institution-approved consent. The researcher must replace/review this
 text and supply an approved investigator contact before any rehearsal with recruited participants.
 
+### Investigator review: possible answer leakage
+
+The current participant-visible scenario descriptions and recommender rationale/cautions contain
+interpretations that may cue an answer, and that cue can differ by condition. Examples include the
+translation scenario description saying human verification is incomplete, the apparent-activity
+description saying increased activity is not established, and chart cautions saying reports do not
+establish a total inventory. These statements have been retained rather than silently rewritten in
+this rehearsal revision. Before any pilot, investigators must review the exact text rendered for all
+five families, both conditions, and every selectable chart; decide whether it is part of the intended
+evidence or an answer hint; and document any approved wording or protocol adjustment.
+
 ## Stimulus and answer-key controls
 
 The study calls `generateSyntheticDataset(271828)` from the repository's real deterministic Cedar
@@ -130,5 +147,7 @@ consider that limitation when selecting a study host and recruitment process.
   testing, including interruption, resume, export, and decline/exit.
 - [ ] Rehearse the full protocol using synthetic test sessions, verify the host's local/export
   behavior, and ensure the production backend remains disabled.
+- [ ] Review condition-specific scenario descriptions, recommendation rationales, and cautions for
+  answer leakage across every family/chart before approving participant-facing stimuli.
 - [ ] Only after all prior gates, explicitly approve any production participant collection and
   configure an institution-approved backend without committing credentials.

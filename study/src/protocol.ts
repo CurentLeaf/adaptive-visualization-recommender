@@ -7,6 +7,8 @@ export const RESPONSE_SCHEMA_VERSION = 1;
 export const STIMULUS_SEED = 271828;
 export const STIMULUS_VERSION = 'cedar-watch-generator-1';
 export const STORAGE_KEY = 'avr-cedar-watch-pilot-v1';
+export const STUDY_UI_VERSION = 'rehearsal-2026.11.03.1';
+const TRIAL_DRAFT_PREFIX = `${STORAGE_KEY}:draft:`;
 
 export const scenarioOrder: ScenarioId[] = [
   'corroboration',
@@ -64,6 +66,7 @@ export const pilotSessionSchema = z
   .object({
     schemaVersion: z.literal(RESPONSE_SCHEMA_VERSION),
     protocolVersion: z.literal(PROTOCOL_VERSION),
+    uiVersion: z.string().max(80).optional(),
     participantId: z.string().min(1).max(80),
     sessionId: z.string().min(1).max(80),
     consentAccepted: z.literal(true),
@@ -132,6 +135,76 @@ export const pilotSessionSchema = z
 export type TrialRecord = z.infer<typeof trialRecordSchema>;
 export type PilotSession = z.infer<typeof pilotSessionSchema>;
 
+export const trialDraftSchema = z
+  .object({
+    sessionId: z.string().min(1).max(80),
+    trialId: z.string().min(1).max(120),
+    selectedReportId: z.string().max(120),
+    selectedVisualizationId: z.string().max(120),
+    answerKind: z.enum(['choice', 'unknown']).nullable(),
+    answerId: z.string().max(120),
+    confidence: z.enum(['', '1', '2', '3', '4', '5']),
+    difficulty: z.enum(['', '1', '2', '3', '4', '5']),
+    interactions: z.array(interactionSchema).max(1000),
+    activeTrialTimeMs: z.number().int().nonnegative(),
+    visibilityInterruptions: z.number().int().nonnegative(),
+  })
+  .strict()
+  .refine(
+    (draft) =>
+      (draft.answerKind !== 'unknown' || draft.answerId === '') &&
+      (draft.answerKind !== 'choice' || draft.answerId.length > 0),
+    'Choice drafts require an option and unknown drafts must not contain a choice.',
+  );
+export type TrialDraft = z.infer<typeof trialDraftSchema>;
+
+export function emptyTrialDraft(
+  sessionId: string,
+  trialId: string,
+  selectedVisualizationId: string,
+): TrialDraft {
+  return {
+    sessionId,
+    trialId,
+    selectedReportId: '',
+    selectedVisualizationId,
+    answerKind: null,
+    answerId: '',
+    confidence: '',
+    difficulty: '',
+    interactions: [],
+    activeTrialTimeMs: 0,
+    visibilityInterruptions: 0,
+  };
+}
+
+function trialDraftKey(sessionId: string, trialId: string): string {
+  return `${TRIAL_DRAFT_PREFIX}${encodeURIComponent(sessionId)}:${encodeURIComponent(trialId)}`;
+}
+
+export function loadTrialDraft(sessionId: string, trialId: string): TrialDraft | null {
+  try {
+    const raw = localStorage.getItem(trialDraftKey(sessionId, trialId));
+    if (raw === null) return null;
+    const draft = trialDraftSchema.parse(JSON.parse(raw));
+    return draft.sessionId === sessionId && draft.trialId === trialId ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTrialDraft(draft: TrialDraft): void {
+  const validDraft = trialDraftSchema.parse(draft);
+  localStorage.setItem(
+    trialDraftKey(validDraft.sessionId, validDraft.trialId),
+    JSON.stringify(validDraft),
+  );
+}
+
+export function clearTrialDraft(sessionId: string, trialId: string): void {
+  localStorage.removeItem(trialDraftKey(sessionId, trialId));
+}
+
 export function assignTrials(participantId: string): {
   group: number;
   trials: TrialAssignment[];
@@ -189,6 +262,10 @@ export function loadSession(): PilotSession | null {
 
 export function clearSession(): void {
   localStorage.removeItem(STORAGE_KEY);
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith(TRIAL_DRAFT_PREFIX)) localStorage.removeItem(key);
+  }
 }
 
 export function sessionExportJson(session: PilotSession): string {
@@ -202,6 +279,7 @@ export function sessionExportJson(session: PilotSession): string {
 const csvColumns = [
   'schemaVersion',
   'protocolVersion',
+  'uiVersion',
   'participantId',
   'sessionId',
   'sourceCommit',
@@ -251,6 +329,8 @@ export function sessionExportCsv(session: PilotSession): string {
               ? validSession.schemaVersion
               : column === 'protocolVersion'
                 ? validSession.protocolVersion
+                : column === 'uiVersion'
+                  ? validSession.uiVersion
                 : column === 'participantId'
                   ? validSession.participantId
                   : column === 'sessionId'

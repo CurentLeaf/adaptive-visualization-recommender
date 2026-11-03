@@ -5,6 +5,11 @@ accept arbitrary imports, or enable production participant collection. The proto
 requires investigator and institutional approval before recruitment. All participant-facing
 stimuli are fictional synthetic Cedar Watch reports.
 
+The current rehearsal interface is `rehearsal-2026.11.03.1`. New session exports record this
+optional UI revision while retaining response schema `1` and accepting older saved sessions. Trial
+answers, confidence, difficulty, evidence selections, and active-time metadata are saved as separate
+validated per-session/per-trial local drafts until submission; drafts are not included in exports.
+
 ## Clean install and local launch
 
 Requirements: Node.js 20.19+ and npm.
@@ -25,8 +30,16 @@ Checks:
 npm --prefix study test
 npm --prefix study run typecheck
 npm --prefix study run build
+npm --prefix study run test:e2e
 python3 -m unittest discover -s study/analysis
 ```
+
+`test:e2e` launches the locally installed Chromium executable and the study Vite server, then runs
+the full synthetic participant flow over the Chrome DevTools Protocol without adding browser-test
+dependencies. Set `CHROMIUM_BIN` to an executable path if it is not named `chromium`,
+`chromium-browser`, or `google-chrome`. The test skips with a diagnostic if Chromium or the Node
+global `WebSocket` API is unavailable. It captures temporary desktop/mobile and chart screenshots
+under the system temporary directory and removes its browser profile/server afterwards.
 
 The existing application remains separately installable and run with the root instructions in
 [`../README.md`](../README.md). No study environment variable is needed for local use. The study
@@ -48,6 +61,22 @@ provided.
    clearing a session, and both export formats.
 6. Validate the downloaded files and run the offline analysis command below. Rehearsal data remain
    in the browser unless explicitly exported or cleared.
+
+The trial header identifies `Trial N of 10` and the condition. The question is first, appears again
+above the response controls, and each new trial returns focus/scroll to its heading. Response fields
+and report/chart interactions are saved as validated drafts under a key scoped to session and trial;
+they are kept separate from submitted responses and exports. A refresh or pause/resume restores the
+current draft. Submitting a trial records its response and clears only that trial's draft.
+
+Text-mark recommendations are rendered as the same readable semantic report table used by the
+evidence-only condition rather than as dense, overlapping Vega text. Other recommendations use the
+actual Vega-Lite spec. Technical mapping/provenance details begin collapsed in study mode. The shared
+app's default inspector behavior is unchanged.
+
+Before any pilot use, review the [possible answer leakage note](../docs/pilot-study-protocol.md#investigator-review-possible-answer-leakage):
+scenario descriptions and recommendation cautions can disclose interpretations, with some text
+visible only in the recommended condition. Rehearsal preserves that text for explicit investigator
+review instead of silently changing the protocol.
 
 Consent is an unapproved draft. Declining exits without writing a session. A saved local session is
 shown behind a resume/clear gate before another session can start, to reduce accidental sharing on

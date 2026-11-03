@@ -15,6 +15,8 @@ export function VegaChart({
   ariaLabel?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const callbacks = useRef({ onSelect, onSelectDatum, onBrush });
+  callbacks.current = { onSelect, onSelectDatum, onBrush };
   useEffect(() => {
     if (!host.current) return;
     let active = true;
@@ -29,18 +31,19 @@ export function VegaChart({
         result.view.addEventListener('click', (_event, item) => {
           const datum = item?.datum as Record<string, unknown> | undefined;
           const id = datum?.report_id;
-          if (typeof id === 'string') onSelect?.(id);
-          else if (datum) onSelectDatum?.(datum);
+          if (typeof id === 'string') callbacks.current.onSelect?.(id);
+          else if (datum) callbacks.current.onSelectDatum?.(datum);
         });
-        if (onBrush) {
+        if (callbacks.current.onBrush) {
           try {
             result.view.addSignalListener('timeBrush', (_name, value) => {
               const range = (value as { day?: [number, number] })?.day;
-              if (range?.length === 2)
-                onBrush(
+              if (range?.length === 2) {
+                callbacks.current.onBrush?.(
                   new Date(range[0]).toISOString().slice(0, 10),
                   new Date(range[1]).toISOString().slice(0, 10),
                 );
+              }
             });
           } catch {
             /* A chart without a brush has no signal. */
@@ -54,7 +57,7 @@ export function VegaChart({
       active = false;
       finalize?.();
     };
-  }, [spec, onSelect, onSelectDatum, onBrush]);
+  }, [spec]);
   return (
     <div
       className="chart"

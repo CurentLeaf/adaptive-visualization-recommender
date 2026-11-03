@@ -1,5 +1,5 @@
 .study-shell {
-  max-width: 1180px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
   color: #172033;
@@ -21,9 +21,19 @@ body {
   cursor: pointer;
 }
 
+.study-shell button:focus-visible,
+.study-shell a:focus-visible,
+.study-shell input:focus-visible,
+.study-shell select:focus-visible,
+.study-shell summary:focus-visible,
+.study-shell [tabindex='-1']:focus-visible {
+  outline: 3px solid #155eef;
+  outline-offset: 3px;
+}
+
 .study-shell .panel {
   min-width: 0;
-  padding: 1rem;
+  padding: 1.15rem;
   border: 1px solid #dce4ec;
   border-radius: 0.75rem;
   background: #fff;
@@ -31,34 +41,65 @@ body {
 }
 
 .study-shell .tablewrap {
-  overflow: auto;
-  max-height: 24rem;
+  max-width: 100%;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 0.35rem;
 }
 
 .study-shell table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .study-shell th,
 .study-shell td {
-  padding: 0.5rem;
-  border-bottom: 1px solid #e4eaf0;
+  min-width: 7rem;
+  padding: 0.7rem;
+  border-bottom: 1px solid #d5dee8;
   text-align: left;
   vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .study-shell th {
-  white-space: nowrap;
+  background: #f4f7fa;
+  color: #172b45;
+}
+
+.study-shell table caption {
+  padding: 0 0 0.65rem;
+  color: #34445a;
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-align: left;
 }
 
 .study-shell .situation-chart {
-  margin: 1rem 0;
-  overflow: auto;
+  margin: 1.25rem 0;
+  overflow: visible;
 }
 
 .study-shell .situation-svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: none;
+}
+
+.study-shell .chart {
+  min-height: 18rem;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.study-shell .chart svg {
   max-width: 100%;
 }
 
@@ -67,7 +108,7 @@ body {
   padding: 0;
   border: 0;
   background: none;
-  color: #2c527b;
+  color: #174b84;
   font-weight: 700;
   text-align: left;
   text-decoration: underline;
@@ -77,29 +118,56 @@ body {
 .study-shell .help,
 .study-shell .muted {
   display: block;
-  color: #5c6d80;
-  font-size: 0.8rem;
+  color: #43556c;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.study-shell .secondary-id {
+  overflow-wrap: anywhere;
 }
 
 .study-shell .detail-grid {
-  display: grid;
-  grid-template-columns: minmax(8rem, 0.4fr) 1fr;
-  gap: 0.5rem;
+  grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
+  gap: 0.7rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .study-shell .detail-grid dd {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.study-shell .evidence {
+  position: static;
+  grid-column: auto;
+  width: 100%;
+  max-height: none;
+  margin: 1.25rem 0;
+  overflow: visible;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.study-shell .evidence p,
+.study-shell .evidence li {
+  font-size: 1rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.study-shell .technical-details {
+  max-height: none;
+  overflow: visible;
 }
 
 .study-shell .uncertainty-cautions {
-  padding: 0.8rem;
-  border-left: 4px solid #c27608;
+  padding: 1rem;
+  border-left: 4px solid #a15c00;
   background: #fff7e6;
-}
-
-.study-shell .chart {
-  min-height: 18rem;
-  overflow: auto;
+  color: #3a2a12;
 }
 
 .study-header,
@@ -108,7 +176,8 @@ body {
 }
 
 .study-card {
-  padding: 1.25rem;
+  min-width: 0;
+  padding: 1.4rem;
   border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
   background: #fff;
@@ -116,59 +185,105 @@ body {
 }
 
 .study-kicker {
-  color: #475569;
-  font-size: 0.85rem;
+  color: #34445a;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .study-notice,
 .study-caution {
-  padding: 0.8rem 1rem;
-  border-left: 4px solid #b45309;
+  padding: 1rem 1.15rem;
+  border-left: 4px solid #a15c00;
   background: #fffbeb;
+  color: #3a2a12;
+  line-height: 1.55;
 }
 
 .condition-label {
   display: inline-block;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  background: #dbeafe;
-  color: #1e3a8a;
-  font-weight: 700;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #9ab8e0;
+  border-radius: 0.5rem;
+  background: #e7f0ff;
+  color: #173c70;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.condition-explanation,
+.question-repeat {
+  max-width: 75ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.study-shell p,
+.study-shell li {
+  line-height: 1.55;
+}
+
+.study-shell h1 {
+  max-width: 38ch;
+  margin: 0.4rem 0 1rem;
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  line-height: 1.25;
+  letter-spacing: normal;
+}
+
+.study-shell h2 {
+  margin: 0 0 0.9rem;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  line-height: 1.3;
+}
+
+.study-shell h3,
+.study-shell h4 {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .study-consent-check,
 .study-option {
   display: flex;
   align-items: flex-start;
-  gap: 0.65rem;
-  margin: 0.75rem 0;
+  gap: 0.8rem;
+  margin: 0.9rem 0;
+  line-height: 1.55;
 }
 
 .study-consent-check input,
 .study-option input {
-  margin-top: 0.25rem;
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: 0.2rem 0 0;
 }
 
 .study-field {
   display: grid;
-  gap: 0.35rem;
-  margin: 0.9rem 0;
+  min-width: 0;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  line-height: 1.45;
 }
 
 .study-field select {
-  max-width: 34rem;
-  min-height: 2.5rem;
-  padding: 0.4rem 0.6rem;
+  width: 100%;
+  max-width: 38rem;
+  min-height: 2.8rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #68788d;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #172033;
 }
 
 .study-two-fields,
 .study-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 1rem;
   align-items: end;
 }
 
@@ -177,26 +292,113 @@ body {
 }
 
 .study-trial .study-card {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+}
+
+.response-card {
+  position: static;
+  clear: both;
+  margin-top: 2rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 2px solid #53749d;
 }
 
 .response-card fieldset {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.7rem;
   margin: 1rem 0;
-  padding: 1rem;
-  border: 1px solid #cbd5e1;
+  padding: clamp(0.8rem, 2vw, 1.3rem);
+  border: 1px solid #8291a3;
   border-radius: 0.5rem;
 }
 
-.study-trial .tablewrap,
-.study-trial .situation-chart,
-.study-trial .evidence {
-  margin: 1rem 0;
+.response-card legend {
+  padding: 0 0.4rem;
+  font-weight: 700;
+}
+
+.study-shell .button {
+  display: inline-flex;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.45rem;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+}
+
+.study-shell .button.primary {
+  background: #24558e;
+  border-color: #24558e;
+  color: #fff;
+}
+
+.study-shell .button.secondary {
+  background: #eaf1f8;
+  border-color: #8798ab;
+  color: #173c70;
+}
+
+.study-shell .button.ghost {
+  border-color: #8798ab;
+  color: #173c70;
+}
+
+.study-shell .button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.study-shell .study-actions > *,
+.response-card > .button {
+  max-width: 100%;
+}
+
+.study-shell [role='alert'],
+.study-shell [role='status'] {
+  padding: 0.85rem;
+  border-radius: 0.35rem;
+  background: #eef4fb;
+  color: #172b45;
+  line-height: 1.5;
+}
+
+.study-shell .timeline-row:focus,
+.study-shell .grid-location-selectable:focus {
+  outline: 3px solid #155eef;
+  outline-offset: 3px;
 }
 
 @media (max-width: 700px) {
   .study-shell {
     padding: 1rem 0.65rem 2rem;
+  }
+
+  .study-card,
+  .study-shell .panel {
+    padding: 1rem;
+  }
+
+  .study-shell .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .study-shell .detail-grid dt {
+    margin-top: 0.65rem;
+    font-weight: 700;
+  }
+
+  .study-shell .situation-svg {
+    height: auto;
+  }
+
+  .study-actions > *,
+  .study-shell .button {
+    max-width: 100%;
   }
 }

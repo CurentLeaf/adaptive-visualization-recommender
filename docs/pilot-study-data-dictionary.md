@@ -12,7 +12,8 @@ answer-key or correctness fields.
 | Field | Meaning |
 |---|---|
 | `schemaVersion` | Response schema integer, currently `1`. |
-| `protocolVersion` | Draft protocol label (`draft-1`); change when the approved protocol changes. |
+| `protocolVersion` | Draft protocol label (`draft-1`); change when the approved response protocol changes. |
+| `uiVersion` | Optional rehearsal interface revision (`rehearsal-2026.11.03.1`); absent on older saved sessions. |
 | `participantId` | Cryptographically generated anonymous ID; no account or external identity is used. |
 | `sessionId` | Cryptographically generated anonymous local-session ID. |
 | `consentAccepted` | Always `true` for a saved record; declining creates no record. |
@@ -27,6 +28,12 @@ answer-key or correctness fields.
 
 No names, email addresses, free-text notes, imported data, absolute trial timestamps, browser
 fingerprints, or device metadata are added by the standalone app.
+
+Unsubmitted trial drafts are stored in separate, validated localStorage keys scoped to the current
+anonymous session and assigned trial. They support reload and pause/resume but are never included in
+session responses or exports. Clearing the local session also clears study trial drafts. Older
+schema-version-1 sessions remain readable because the UI revision is optional and response fields are
+unchanged.
 
 ## Trial fields
 

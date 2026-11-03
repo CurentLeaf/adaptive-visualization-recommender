@@ -29,6 +29,17 @@ export type StudyScenarioView = {
   salience: Map<string, ReturnType<typeof scoreSalience>>;
 };
 
+export function containsTextMark(spec: Record<string, unknown>): boolean {
+  const mark = spec.mark;
+  if (mark === 'text' || (typeof mark === 'object' && mark !== null && 'type' in mark && mark.type === 'text')) {
+    return true;
+  }
+  return Array.isArray(spec.layer) &&
+    spec.layer.some(
+      (layer) => typeof layer === 'object' && layer !== null && containsTextMark(layer),
+    );
+}
+
 const viewCache = new Map<ScenarioId, StudyScenarioView>();
 
 export function getScenarioView(scenario: ScenarioId): StudyScenarioView {
