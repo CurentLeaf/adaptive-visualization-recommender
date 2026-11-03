@@ -72,6 +72,24 @@ class CdpConnection {
     return result.result.value;
   }
 
+  async callFunction(functionDeclaration, args = []) {
+    const windowObject = await this.send('Runtime.evaluate', {
+      expression: 'window',
+      returnByValue: false,
+    });
+    const result = await this.send('Runtime.callFunctionOn', {
+      objectId: windowObject.result.objectId,
+      functionDeclaration,
+      arguments: args.map((value) => ({ value })),
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
+    }
+    return result.result.value;
+  }
+
   close() {
     this.socket.close();
   }
@@ -154,15 +172,29 @@ test(
         return cdp.evaluate(expression);
       }
       async function clickText(selector, text) {
-        const clicked = await evaluate(
-          `(() => { const element=[...document.querySelectorAll(${JSON.stringify(selector)})].find((item)=>item.textContent.includes(${JSON.stringify(text)})); if (!element) return false; element.click(); return true; })()`,
+        const clicked = await cdp.callFunction(
+          `function(selector,text) {
+            const element=[...document.querySelectorAll(selector)].find((item)=>item.textContent.includes(text));
+            if (!element) return false;
+            element.click();
+            return true;
+          }`,
+          [selector, text],
         );
         assert.equal(clicked, true, `missing ${selector} containing ${text}`);
         await delay(250);
       }
       async function selectValue(label, value) {
-        const selected = await evaluate(
-          `(() => { const select=[...document.querySelectorAll('select')].find((item)=>item.getAttribute('aria-label')===${JSON.stringify(label)} || item.labels?.[0]?.textContent.includes(${JSON.stringify(label)})); if (!select) return false; select.value=${JSON.stringify(value)}; select.dispatchEvent(new Event('change',{bubbles:true})); return true; })()`,
+        const selected = await cdp.callFunction(
+          `function(label,value) {
+            const select=[...document.querySelectorAll('select')].find((item)=>
+              item.getAttribute('aria-label')===label || item.labels?.[0]?.textContent.includes(label));
+            if (!select) return false;
+            select.value=value;
+            select.dispatchEvent(new Event('change',{bubbles:true}));
+            return true;
+          }`,
+          [label, value],
         );
         assert.equal(selected, true, `missing select ${label}`);
         await delay(180);
