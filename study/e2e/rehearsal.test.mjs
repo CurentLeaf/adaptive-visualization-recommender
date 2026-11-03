@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import net from 'node:net';
@@ -13,7 +15,7 @@ const chromium = process.env.CHROMIUM_BIN ??
   ['chromium', 'chromium-browser', 'google-chrome'].find(
     (command) => spawnSync('which', [command], { stdio: 'ignore' }).status === 0,
   );
-const browserAvailable = Boolean(chromium && typeof WebSocket === 'function');
+const browserAvailable = Boolean(chromium && typeof globalThis.WebSocket === 'function');
 
 async function stopProcess(child) {
   if (child.exitCode !== null) return;
@@ -26,7 +28,7 @@ async function stopProcess(child) {
 
 class CdpConnection {
   constructor(url) {
-    this.socket = new WebSocket(url);
+    this.socket = new globalThis.WebSocket(url);
     this.nextId = 0;
     this.pending = new Map();
     this.errors = [];
@@ -109,7 +111,7 @@ test(
       let ready = false;
       for (let attempt = 0; attempt < 100; attempt += 1) {
         try {
-          const response = await fetch(baseUrl);
+          const response = await globalThis.fetch(baseUrl);
           if (response.ok) {
             ready = true;
             break;
@@ -130,7 +132,7 @@ test(
         }
       }
       assert.ok(activePort, 'Chromium DevTools endpoint did not start');
-      const targets = await (await fetch(`http://127.0.0.1:${activePort}/json/list`)).json();
+      const targets = await (await globalThis.fetch(`http://127.0.0.1:${activePort}/json/list`)).json();
       const page = targets.find((target) => target.type === 'page');
       assert.ok(page, 'Chromium page target is unavailable');
       cdp = new CdpConnection(page.webSocketDebuggerUrl);

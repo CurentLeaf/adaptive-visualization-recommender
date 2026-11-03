@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { studyDependencyAliases } from './src/viteAliases';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -27,5 +27,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: studyDependencyAliases(path.join(directory, 'node_modules')) },
   define: { __SOURCE_COMMIT__: JSON.stringify(sourceCommit) },
-  test: { environment: 'jsdom', setupFiles: ['./tests/setup.ts'] },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.ts'],
+    exclude: [...configDefaults.exclude, 'e2e/**'],
+  },
 });
