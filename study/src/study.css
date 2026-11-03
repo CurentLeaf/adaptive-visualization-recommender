@@ -5,6 +5,103 @@
   color: #172033;
 }
 
+body {
+  margin: 0;
+  background: #f2f5f8;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.study-shell button,
+.study-shell input,
+.study-shell select {
+  font: inherit;
+}
+
+.study-shell button {
+  cursor: pointer;
+}
+
+.study-shell .panel {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #dce4ec;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 1px 3px #2030460b;
+}
+
+.study-shell .tablewrap {
+  overflow: auto;
+  max-height: 24rem;
+}
+
+.study-shell table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.study-shell th,
+.study-shell td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e4eaf0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.study-shell th {
+  white-space: nowrap;
+}
+
+.study-shell .situation-chart {
+  margin: 1rem 0;
+  overflow: auto;
+}
+
+.study-shell .situation-svg {
+  max-width: 100%;
+}
+
+.study-shell .text-button,
+.study-shell .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2c527b;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.study-shell .secondary-id,
+.study-shell .help,
+.study-shell .muted {
+  display: block;
+  color: #5c6d80;
+  font-size: 0.8rem;
+}
+
+.study-shell .detail-grid {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.4fr) 1fr;
+  gap: 0.5rem;
+}
+
+.study-shell .detail-grid dd {
+  margin: 0;
+}
+
+.study-shell .uncertainty-cautions {
+  padding: 0.8rem;
+  border-left: 4px solid #c27608;
+  background: #fff7e6;
+}
+
+.study-shell .chart {
+  min-height: 18rem;
+  overflow: auto;
+}
+
 .study-header,
 .study-card {
   margin: 0 0 1.25rem;

@@ -66,7 +66,6 @@ export const pilotSessionSchema = z
     participantId: z.string().min(1).max(80),
     sessionId: z.string().min(1).max(80),
     consentAccepted: z.literal(true),
-    acceptedAt: z.string().datetime(),
     sourceCommit: z.string().max(80),
     stimulusSeed: z.number().int(),
     stimulusVersion: z.string().max(80),
@@ -81,18 +80,16 @@ export const pilotSessionSchema = z
         easierCondition: z.enum(['baseline', 'recommended', 'no-difference']).nullable(),
       })
       .strict(),
-    completedAt: z.string().datetime().nullable(),
   })
   .strict()
   .refine(
     (session) =>
       session.status !== 'complete' ||
-      (session.responses.length === 10 &&
-        session.usability.evidenceClarity !== null &&
-        session.usability.conditionPreference !== null &&
-        session.usability.easierCondition !== null &&
-        session.completedAt !== null),
-    'A complete session must include ten trials, usability answers, and a completion time.',
+      (      session.responses.length === 10 &&
+      session.usability.evidenceClarity !== null &&
+      session.usability.conditionPreference !== null &&
+      session.usability.easierCondition !== null),
+    'A complete session must include ten trials and all usability answers.',
   );
 
 export type TrialRecord = z.infer<typeof trialRecordSchema>;
@@ -120,11 +117,12 @@ export function assignTrials(participantId: string): {
     const baselineFirst = (group + index) % 2 === 0;
     const firstCondition: StudyCondition = baselineFirst ? 'baseline' : 'recommended';
     const secondCondition: StudyCondition = baselineFirst ? 'recommended' : 'baseline';
-    const assignmentByCondition = {
+    const assignmentByCondition: Record<StudyCondition, TaskVariant> = {
       baseline: baselineVariant,
       recommended: recommendedVariant,
     };
-    for (const condition of [firstCondition, secondCondition]) {
+    const conditionOrder: StudyCondition[] = [firstCondition, secondCondition];
+    for (const condition of conditionOrder) {
       const taskVariant = assignmentByCondition[condition];
       trials.push({
         trialId: `${scenarioFamily}-${taskVariant}-${condition}`,

@@ -20,7 +20,6 @@ function createSession(participantId: string): PilotSession {
     participantId,
     sessionId: 'session-test',
     consentAccepted: true,
-    acceptedAt: '2026-01-01T00:00:00.000Z',
     sourceCommit: 'test-commit',
     stimulusSeed: 271828,
     stimulusVersion: 'cedar-watch-generator-1',
@@ -33,7 +32,6 @@ function createSession(participantId: string): PilotSession {
       conditionPreference: null,
       easierCondition: null,
     },
-    completedAt: null,
   };
 }
 

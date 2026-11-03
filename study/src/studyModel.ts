@@ -7,7 +7,6 @@ import { recommend } from '../../src/lib/recommendationEngine';
 import { recommendModels } from '../../src/lib/modelSelection';
 import { profileReports } from '../../src/lib/profiler';
 import { scoreSalience } from '../../src/lib/salience';
-import type { RecommendationDatum } from '../../src/lib/recommendationEngine';
 import type { ModelingRecommendation, VisualizationRecommendation } from '../../src/domain/types';
 import { STIMULUS_SEED } from './protocol';
 
@@ -60,7 +59,7 @@ export function getScenarioView(scenario: ScenarioId): StudyScenarioView {
       distinct_source_count: derived?.distinctSourceCount ?? 0,
       salience: scoreSalience(report, DEFAULT_WEIGHTS).score,
       is_selected: false,
-    } satisfies RecommendationDatum;
+    };
   });
   const result = recommend({
     profile,

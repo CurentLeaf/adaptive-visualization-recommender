@@ -20,7 +20,6 @@ function sessionForGroup(group: number): PilotSession {
     participantId,
     sessionId: `session-group-${group}`,
     consentAccepted: true,
-    acceptedAt: '2026-01-01T00:00:00.000Z',
     sourceCommit: 'test',
     stimulusSeed: 271828,
     stimulusVersion: 'cedar-watch-generator-1',
@@ -33,7 +32,6 @@ function sessionForGroup(group: number): PilotSession {
       conditionPreference: null,
       easierCondition: null,
     },
-    completedAt: null,
   };
 }
 
@@ -56,6 +54,7 @@ describe('pilot participant flow', () => {
     const baseline = sessionForGroup(0);
     saveSession(baseline);
     const baselineView = render(<StudyApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
     expect(screen.getByText(/Fixed baseline: report comparison table/)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Task-aware recommendation' })).not.toBeInTheDocument();
     baselineView.unmount();
@@ -63,6 +62,7 @@ describe('pilot participant flow', () => {
     const recommended = sessionForGroup(1);
     saveSession(recommended);
     render(<StudyApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
     expect(screen.getByRole('region', { name: 'Task-aware recommendation' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /^Task-aware recommended/ })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: /Source-reported observations/ })).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('pilot participant flow', () => {
 
     const submit = screen.getByRole('button', { name: 'Record response and continue' });
     expect(submit).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Inspect / }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Inspect / })[0]);
     fireEvent.click(screen.getByRole('radio', { name: /I cannot determine an answer/ }));
     fireEvent.change(screen.getByLabelText('Confidence'), { target: { value: '3' } });
     expect(submit).toBeDisabled();

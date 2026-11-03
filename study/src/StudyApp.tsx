@@ -3,7 +3,6 @@ import { FictionalGridPlot, ObservationTimeline, ReportComparisonTable } from '.
 import { VegaChart } from '../../src/components/charts/VegaChart';
 import { EvidencePanel } from '../../src/components/details/EvidencePanel';
 import { SCENARIOS } from '../../src/domain/constants';
-import type { ScenarioId } from '../../src/domain/types';
 import {
   assignTrials,
   clearSession,
@@ -23,7 +22,7 @@ import {
 import { getQuestion } from './questions';
 import { getScenarioView, sourceCommit } from './studyModel';
 
-type Stage = 'introduction' | 'consent' | 'practice' | 'trial' | 'survey' | 'debrief' | 'declined' | 'exited';
+type Stage = 'introduction' | 'consent' | 'practice' | 'trial' | 'survey' | 'debrief' | 'declined' | 'exited' | 'saved';
 
 const anonymousId = (prefix: string) => {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -59,9 +58,7 @@ export function StudyApp({
   onSessionChange?: (session: PilotSession) => void;
 }) {
   const [session, setSession] = useState<PilotSession | null>(() => loadSession());
-  const [stage, setStage] = useState<Stage>(() =>
-    session ? (session.status === 'complete' ? 'debrief' : 'trial') : 'introduction',
-  );
+  const [stage, setStage] = useState<Stage>(() => (session ? 'saved' : 'introduction'));
   const [consentChecked, setConsentChecked] = useState(false);
   const [practiceAnswer, setPracticeAnswer] = useState('');
   const [practiceFeedback, setPracticeFeedback] = useState('');
@@ -166,14 +163,12 @@ export function StudyApp({
     if (!consentChecked) return;
     const participantId = anonymousId('P');
     const nextAssignment = assignTrials(participantId);
-    const acceptedAt = new Date().toISOString();
     const initial: PilotSession = {
       schemaVersion: RESPONSE_SCHEMA_VERSION,
       protocolVersion: PROTOCOL_VERSION,
       participantId,
       sessionId: anonymousId('S'),
       consentAccepted: true,
-      acceptedAt,
       sourceCommit: sourceCommit(),
       stimulusSeed: STIMULUS_SEED,
       stimulusVersion: STIMULUS_VERSION,
@@ -186,7 +181,6 @@ export function StudyApp({
         conditionPreference: null,
         easierCondition: null,
       },
-      completedAt: null,
     };
     if (commitSession(initial)) setStage('practice');
   };
@@ -254,7 +248,6 @@ export function StudyApp({
         conditionPreference: conditionPreference as PilotSession['usability']['conditionPreference'],
         easierCondition: easierCondition as PilotSession['usability']['easierCondition'],
       },
-      completedAt: new Date().toISOString(),
     };
     if (commitSession(next)) setStage('debrief');
   };
@@ -285,6 +278,40 @@ export function StudyApp({
           <button className="button primary" type="button" onClick={() => setStage('consent')}>
             Continue to draft consent
           </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (stage === 'saved' && session) {
+    return (
+      <main className="study-shell">
+        <section className="study-card">
+          <h1>Saved local session</h1>
+          <p>
+            This browser already contains an anonymous {session.status === 'complete' ? 'completed' : 'incomplete'} pilot session.
+            If this is a shared device, do not show it to another participant.
+          </p>
+          <div className="study-actions">
+            <button
+              className="button primary"
+              type="button"
+              onClick={() => setStage(session.status === 'complete' ? 'debrief' : session.responses.length === 10 ? 'survey' : 'trial')}
+            >
+              {session.status === 'complete' ? 'View completed debrief' : 'Resume saved session'}
+            </button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => {
+                clearSession();
+                setSession(null);
+                setStage('introduction');
+              }}
+            >
+              Clear session and start new
+            </button>
+          </div>
         </section>
       </main>
     );
