@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": "draft-1",
+  "interpretationOnly": true,
+  "answerKey": {
+    "corroboration": {
+      "A": "same-items",
+      "B": "four-sources"
+    },
+    "conflict": {
+      "A": "unknown-not-zero",
+      "B": "six-vs-four"
+    },
+    "uncertain": {
+      "A": "four-hours",
+      "B": "observation-not-receipt"
+    },
+    "quality": {
+      "A": "not-verified",
+      "B": "unresolved-range"
+    },
+    "anomaly": {
+      "A": "no-proof",
+      "B": "frequency-and-coverage"
+    }
+  }
+}

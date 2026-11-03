@@ -1,0 +1,35 @@
+{
+  "name": "adaptive-visualization-recommender-study",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "4.1.18",
+    "@vitejs/plugin-react": "4.7.0",
+    "lucide-react": "0.468.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "4.1.18",
+    "vega": "6.4.0",
+    "vega-embed": "7.3.0",
+    "vega-lite": "6.4.3",
+    "vite": "6.4.5",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "22.19.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "26.1.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}
