@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ScenarioId } from '../../src/domain/types';
+import { getQuestion } from './questions';
 
 export const PROTOCOL_VERSION = 'draft-1';
 export const RESPONSE_SCHEMA_VERSION = 1;
@@ -82,15 +83,51 @@ export const pilotSessionSchema = z
       .strict(),
   })
   .strict()
-  .refine(
-    (session) =>
-      session.status !== 'complete' ||
-      (      session.responses.length === 10 &&
-      session.usability.evidenceClarity !== null &&
-      session.usability.conditionPreference !== null &&
-      session.usability.easierCondition !== null),
-    'A complete session must include ten trials and all usability answers.',
-  );
+  .superRefine((session, context) => {
+    if (new Set(session.assignedOrder).size !== session.assignedOrder.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['assignedOrder'],
+        message: 'Assigned trial IDs must be unique.',
+      });
+    }
+
+    session.responses.forEach((trial, index) => {
+      if (trial.trialIndex !== index || session.assignedOrder[index] !== trial.trialId) {
+        context.addIssue({
+          code: 'custom',
+          path: ['responses', index],
+          message: 'Responses must follow the assigned trial order.',
+        });
+      }
+      if (
+        trial.answerKind === 'choice' &&
+        !getQuestion(trial.scenarioFamily, trial.taskVariant).options.some(
+          (option) => option.id === trial.answerId,
+        )
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['responses', index, 'answerId'],
+          message: 'Choice response must match a valid option for the assigned question.',
+        });
+      }
+    });
+
+    if (
+      session.status === 'complete' &&
+      (session.responses.length !== 10 ||
+        session.usability.evidenceClarity === null ||
+        session.usability.conditionPreference === null ||
+        session.usability.easierCondition === null)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['status'],
+        message: 'A complete session must include ten trials and all usability answers.',
+      });
+    }
+  });
 
 export type TrialRecord = z.infer<typeof trialRecordSchema>;
 export type PilotSession = z.infer<typeof pilotSessionSchema>;
@@ -171,6 +208,7 @@ const csvColumns = [
   'stimulusSeed',
   'stimulusVersion',
   'counterbalanceGroup',
+  'assignedOrder',
   'sessionStatus',
   'trialIndex',
   'trialId',
@@ -225,43 +263,45 @@ export function sessionExportCsv(session: PilotSession): string {
                           ? validSession.stimulusVersion
                           : column === 'counterbalanceGroup'
                             ? validSession.counterbalanceGroup
-                            : column === 'sessionStatus'
-                              ? validSession.status
-                              : column === 'trialIndex'
-                                ? trial?.trialIndex
-                                : column === 'trialId'
-                                  ? trial?.trialId
-                                  : column === 'scenarioFamily'
-                                    ? trial?.scenarioFamily
-                                    : column === 'taskVariant'
-                                      ? trial?.taskVariant
-                                      : column === 'condition'
-                                        ? trial?.condition
-                                        : column === 'recommendedVisualization'
-                                          ? trial?.recommendedVisualization
-                                          : column === 'selectedVisualization'
-                                            ? trial?.selectedVisualization
-                                            : column === 'selectedReports'
-                                              ? JSON.stringify(trial?.selectedReports ?? [])
-                                              : column === 'evidenceInteractions'
-                                                ? JSON.stringify(trial?.evidenceInteractions ?? [])
-                                                : column === 'answerKind'
-                                                  ? trial?.answerKind
-                                                  : column === 'answerId'
-                                                    ? trial?.answerId
-                                                    : column === 'confidence'
-                                                      ? trial?.confidence
-                                                      : column === 'perceivedDifficulty'
-                                                        ? trial?.perceivedDifficulty
-                                                        : column === 'activeTrialTimeMs'
-                                                          ? trial?.activeTrialTimeMs
-                                                          : column === 'visibilityInterruptions'
-                                                            ? trial?.visibilityInterruptions
-                                                            : column === 'evidenceClarity'
-                                                              ? validSession.usability.evidenceClarity
-                                                              : column === 'conditionPreference'
-                                                                ? validSession.usability.conditionPreference
-                                                                : validSession.usability.easierCondition;
+                            : column === 'assignedOrder'
+                              ? JSON.stringify(validSession.assignedOrder)
+                              : column === 'sessionStatus'
+                                ? validSession.status
+                                : column === 'trialIndex'
+                                  ? trial?.trialIndex
+                                  : column === 'trialId'
+                                    ? trial?.trialId
+                                    : column === 'scenarioFamily'
+                                      ? trial?.scenarioFamily
+                                      : column === 'taskVariant'
+                                        ? trial?.taskVariant
+                                        : column === 'condition'
+                                          ? trial?.condition
+                                          : column === 'recommendedVisualization'
+                                            ? trial?.recommendedVisualization
+                                            : column === 'selectedVisualization'
+                                              ? trial?.selectedVisualization
+                                              : column === 'selectedReports'
+                                                ? JSON.stringify(trial?.selectedReports ?? [])
+                                                : column === 'evidenceInteractions'
+                                                  ? JSON.stringify(trial?.evidenceInteractions ?? [])
+                                                  : column === 'answerKind'
+                                                    ? trial?.answerKind
+                                                    : column === 'answerId'
+                                                      ? trial?.answerId
+                                                      : column === 'confidence'
+                                                        ? trial?.confidence
+                                                        : column === 'perceivedDifficulty'
+                                                          ? trial?.perceivedDifficulty
+                                                          : column === 'activeTrialTimeMs'
+                                                            ? trial?.activeTrialTimeMs
+                                                            : column === 'visibilityInterruptions'
+                                                              ? trial?.visibilityInterruptions
+                                                              : column === 'evidenceClarity'
+                                                                ? validSession.usability.evidenceClarity
+                                                                : column === 'conditionPreference'
+                                                                  ? validSession.usability.conditionPreference
+                                                                  : validSession.usability.easierCondition;
           return csvCell(value);
         })
         .join(','),

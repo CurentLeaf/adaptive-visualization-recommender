@@ -92,14 +92,36 @@ shared component use the same React instance:
 
 ```ts
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { studyDependencyAliases } from '../src/viteAliases';
 
-// Keep the template's aliases and merge the following in its existing resolve block:
+const sourceCommit =
+  process.env.VITE_SOURCE_COMMIT ??
+  execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: path.resolve(process.cwd(), '../..'),
+    encoding: 'utf8',
+  }).trim();
+```
+
+Add this top-level property to the existing Vite config:
+
+```ts
+define: {
+  __SOURCE_COMMIT__: JSON.stringify(sourceCommit),
+},
+```
+
+Merge these aliases into its existing `resolve.alias` block:
+
+```ts
 alias: {
   ...existingAliases,
   ...studyDependencyAliases(path.resolve(process.cwd(), '../node_modules')),
 }
 ```
+
+The host build-time `__SOURCE_COMMIT__` definition is required so exported sessions record the
+repository revision; `VITE_SOURCE_COMMIT` can supply the exact revision in a reproducible build.
 
 Run the local host with the template's supported development command (`yarn serve` in the upstream
 template). The complete upstream host has not been vendored or run as part of this repository task;

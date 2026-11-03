@@ -96,7 +96,10 @@ describe('pilot assignment, response validation, and local export', () => {
       answerId: null,
     });
     expect(json).not.toMatch(/answerKey|expectedAnswer|correct/i);
-    expect(sessionExportCsv(saved)).toContain('unknown,');
+    const csv = sessionExportCsv(saved);
+    expect(csv).toContain('assignedOrder');
+    expect(csv).toContain(JSON.stringify(session.assignedOrder).replaceAll('"', '""'));
+    expect(csv).toContain('unknown,');
     expect(localStorage.getItem(STORAGE_KEY)).toContain('"answerId":null');
   });
 
@@ -124,5 +127,30 @@ describe('pilot assignment, response validation, and local export', () => {
     } as PilotSession;
     expect(() => saveSession(invalid)).toThrow();
     expect(() => sessionExportJson(invalid)).toThrow();
+
+    const invalidChoice = {
+      ...invalid,
+      responses: [
+        {
+          ...invalid.responses[0],
+          answerKind: 'choice',
+          answerId: 'not-an-option',
+        },
+      ],
+    } as PilotSession;
+    expect(() => saveSession(invalidChoice)).toThrow();
+
+    const outOfOrder = {
+      ...session,
+      responses: [
+        {
+          ...invalid.responses[0],
+          answerKind: 'unknown',
+          answerId: null,
+          trialId: 'wrong-trial',
+        },
+      ],
+    } as PilotSession;
+    expect(() => sessionExportJson(outOfOrder)).toThrow();
   });
 });

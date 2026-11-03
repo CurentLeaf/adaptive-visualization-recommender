@@ -74,17 +74,16 @@ export function StudyApp({
   const visibleSince = useRef<number | null>(null);
   const visibilityInterruptions = useRef(0);
 
-  const assignment = useMemo(
-    () => (session ? assignTrials(session.participantId) : null),
-    [session?.participantId],
-  );
+  const assignment = session ? assignTrials(session.participantId) : null;
   const trial = assignment && session ? assignment.trials[session.responses.length] : undefined;
+  const trialId = trial?.trialId;
   const scenarioView = trial ? getScenarioView(trial.scenarioFamily) : undefined;
   const question = trial ? getQuestion(trial.scenarioFamily, trial.taskVariant) : undefined;
   const selectedReport = scenarioView?.reports.find((report) => report.report_id === selectedReportId);
   const selectedVisualization =
     scenarioView?.recommendations.find((recommendation) => recommendation.id === selectedVisualizationId) ??
     scenarioView?.recommendations[0];
+  const defaultVisualizationId = scenarioView?.recommendations[0]?.id;
   const sourceMap = useMemo(
     () => new Map(scenarioView?.data.sources.map((source) => [source.source_id, source]) ?? []),
     [scenarioView],
@@ -103,7 +102,7 @@ export function StudyApp({
   );
 
   useEffect(() => {
-    if (stage !== 'trial' || !trial) return;
+    if (stage !== 'trial' || trialId === undefined) return;
     activeMilliseconds.current = 0;
     visibilityInterruptions.current = 0;
     visibleSince.current = document.hidden ? null : Date.now();
@@ -126,12 +125,12 @@ export function StudyApp({
         visibleSince.current = null;
       }
     };
-  }, [stage, trial?.trialId]);
+  }, [stage, trialId]);
 
   useEffect(() => {
-    if (trial) {
+    if (trialId !== undefined) {
       setSelectedReportId('');
-      setSelectedVisualizationId(scenarioView?.recommendations[0]?.id ?? '');
+      setSelectedVisualizationId(defaultVisualizationId ?? '');
       setAnswerKind(null);
       setAnswerId('');
       setConfidence('');
@@ -139,7 +138,7 @@ export function StudyApp({
       setInteractions([]);
       setStatusMessage('');
     }
-  }, [trial?.trialId, scenarioView]);
+  }, [trialId, defaultVisualizationId]);
 
   useEffect(() => {
     if (session) onSessionChange?.(session);

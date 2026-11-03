@@ -1,6 +1,10 @@
+import csv
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from analyze import analyze, validate_session
+from analyze import analyze, load_csv, validate_session
 
 
 def session(complete=True):
@@ -18,6 +22,7 @@ def session(complete=True):
             responses.append(
                 {
                     "trialId": f"{family}-{variant}-{condition}",
+                    "trialIndex": len(responses),
                     "scenarioFamily": family,
                     "taskVariant": variant,
                     "condition": condition,
@@ -84,6 +89,53 @@ class AnalysisTests(unittest.TestCase):
         invalid["responses"].append(dict(invalid["responses"][0]))
         with self.assertRaises(ValueError):
             validate_session(invalid)
+
+    def test_rejects_responses_outside_assigned_order(self):
+        invalid = session()
+        invalid["responses"][0]["trialIndex"] = 1
+        with self.assertRaises(ValueError):
+            validate_session(invalid)
+
+    def test_loads_validated_csv_with_the_full_assigned_order(self):
+        record = session(complete=False)
+        record["responses"] = record["responses"][:1]
+        trial = record["responses"][0]
+        row = {
+            "schemaVersion": record["schemaVersion"],
+            "protocolVersion": record["protocolVersion"],
+            "participantId": record["participantId"],
+            "sessionId": record["sessionId"],
+            "sourceCommit": record["sourceCommit"],
+            "stimulusSeed": record["stimulusSeed"],
+            "stimulusVersion": record["stimulusVersion"],
+            "counterbalanceGroup": record["counterbalanceGroup"],
+            "assignedOrder": json.dumps(record["assignedOrder"]),
+            "sessionStatus": record["status"],
+            "trialIndex": trial["trialIndex"],
+            "trialId": trial["trialId"],
+            "scenarioFamily": trial["scenarioFamily"],
+            "taskVariant": trial["taskVariant"],
+            "condition": trial["condition"],
+            "answerKind": trial["answerKind"],
+            "answerId": trial["answerId"],
+            "confidence": trial["confidence"],
+            "perceivedDifficulty": trial["perceivedDifficulty"],
+            "activeTrialTimeMs": trial["activeTrialTimeMs"],
+            "visibilityInterruptions": trial["visibilityInterruptions"],
+            "evidenceClarity": "",
+            "conditionPreference": "",
+            "easierCondition": "",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "responses.csv"
+            with path.open("w", newline="", encoding="utf-8") as file:
+                writer = csv.DictWriter(file, fieldnames=row)
+                writer.writeheader()
+                writer.writerow(row)
+            imported = load_csv(path)
+
+        self.assertEqual(imported[0]["assignedOrder"], record["assignedOrder"])
+        self.assertEqual(imported[0]["responses"], record["responses"])
 
 
 if __name__ == "__main__":

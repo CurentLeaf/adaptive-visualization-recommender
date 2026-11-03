@@ -34,12 +34,36 @@ def validate_session(session):
         raise ValueError("Unsupported response schema or protocol version.")
     if session["status"] not in {"in_progress", "complete"}:
         raise ValueError("Invalid session status.")
+    if (
+        not isinstance(session["assignedOrder"], list)
+        or len(session["assignedOrder"]) != 10
+        or not all(isinstance(trial_id, str) for trial_id in session["assignedOrder"])
+        or len(set(session["assignedOrder"])) != 10
+    ):
+        raise ValueError("Assigned trial order must contain ten unique trial IDs.")
+    usability = session["usability"]
+    if not isinstance(usability, dict) or not {
+        "evidenceClarity",
+        "conditionPreference",
+        "easierCondition",
+    }.issubset(usability):
+        raise ValueError("Session is missing required usability responses.")
+    if usability["evidenceClarity"] is not None and (
+        type(usability["evidenceClarity"]) is not int
+        or not 1 <= usability["evidenceClarity"] <= 5
+    ):
+        raise ValueError("Evidence clarity must be a rating from one to five.")
+    if usability["conditionPreference"] not in {None, "baseline", "recommended", "no-preference"}:
+        raise ValueError("Invalid condition preference.")
+    if usability["easierCondition"] not in {None, "baseline", "recommended", "no-difference"}:
+        raise ValueError("Invalid easier-condition response.")
     if not isinstance(session["responses"], list) or len(session["responses"]) > 10:
         raise ValueError("Session responses must be a list of at most ten trials.")
     seen = set()
-    for trial in session["responses"]:
+    for index, trial in enumerate(session["responses"]):
         trial_fields = {
             "trialId",
+            "trialIndex",
             "scenarioFamily",
             "taskVariant",
             "condition",
@@ -52,8 +76,24 @@ def validate_session(session):
         }
         if not isinstance(trial, dict) or not trial_fields.issubset(trial):
             raise ValueError("Trial is missing required schema fields.")
+        if trial["trialIndex"] != index or trial["trialId"] != session["assignedOrder"][index]:
+            raise ValueError("Trial responses do not follow the assigned trial order.")
         if trial["condition"] not in {"baseline", "recommended"}:
             raise ValueError("Invalid trial condition.")
+        if (
+            type(trial["confidence"]) is not int
+            or not 1 <= trial["confidence"] <= 5
+            or type(trial["perceivedDifficulty"]) is not int
+            or not 1 <= trial["perceivedDifficulty"] <= 5
+        ):
+            raise ValueError("Confidence and perceived difficulty must be ratings from one to five.")
+        if (
+            type(trial["activeTrialTimeMs"]) is not int
+            or trial["activeTrialTimeMs"] < 0
+            or type(trial["visibilityInterruptions"]) is not int
+            or trial["visibilityInterruptions"] < 0
+        ):
+            raise ValueError("Trial time and visibility interruptions must be nonnegative integers.")
         if trial["scenarioFamily"] not in ANSWER_KEY or trial["taskVariant"] not in {"A", "B"}:
             raise ValueError("Unknown scenario family or task variant.")
         if trial["answerKind"] == "unknown":
@@ -68,8 +108,14 @@ def validate_session(session):
         if pair_key in seen:
             raise ValueError("A session contains more than one trial per family and condition.")
         seen.add(pair_key)
-    if session["status"] == "complete" and len(session["responses"]) != 10:
-        raise ValueError("A completed session must contain all ten trials.")
+    if session["status"] == "complete" and (
+        len(session["responses"]) != 10
+        or any(
+            usability[field] is None
+            for field in ("evidenceClarity", "conditionPreference", "easierCondition")
+        )
+    ):
+        raise ValueError("A completed session must contain ten trials and all usability responses.")
     return session
 
 
@@ -102,7 +148,7 @@ def load_csv(path):
                     "stimulusVersion": row["stimulusVersion"],
                     "counterbalanceGroup": int(row["counterbalanceGroup"]),
                     "status": row["sessionStatus"],
-                    "assignedOrder": [],
+                    "assignedOrder": json.loads(row["assignedOrder"]),
                     "responses": [],
                     "usability": {
                         "evidenceClarity": int(row["evidenceClarity"]) if row["evidenceClarity"] else None,
@@ -115,6 +161,7 @@ def load_csv(path):
                 continue
             trial = {
                 "trialId": row["trialId"],
+                "trialIndex": int(row["trialIndex"]),
                 "scenarioFamily": row["scenarioFamily"],
                 "taskVariant": row["taskVariant"],
                 "condition": row["condition"],
