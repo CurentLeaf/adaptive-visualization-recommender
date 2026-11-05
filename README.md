@@ -86,6 +86,14 @@ The existing parallel-coordinates plot is retained. It compares fixed-bound evid
 
 Evaluation questions and answer choices use readable claims rather than synthetic IDs. Logs record schema version, question ID, audience, chart selection, selected reports, filters, interactions, answer, response time, and confidence. Records remain in browser `localStorage`; nothing is sent to a server. Compatible version-1 logs are migrated in memory and the legacy key remains until the user explicitly clears the evaluation log. Export downloads JSON; clear is an explicit action. Previously exported files are not overwritten.
 
+## Draft reVISit pilot study
+
+The opt-in, independently installable study app is under [`study/`](./study/README.md). It reuses the
+existing synthetic generator, rule-based recommender, chart components, report table, timeline,
+fictional grid, and evidence inspector. It does not change the default application or enable
+participant collection. The protocol and data dictionary are drafts; see the [protocol](./docs/pilot-study-protocol.md)
+and [data dictionary](./docs/pilot-study-data-dictionary.md) for limitations and launch gates.
+
 ## Add Data (browser-local import)
 
 **Data & Filters → Add Data** lets you paste, author, or import local `.json`/`.txt` files (TXT must contain supported JSON) holding temporal facts and extraction deductions (schema `avr-import/1`). Data is validated and previewed, then added only on explicit confirmation; it runs through the same typed profiling, eligibility, ranking, chart and evidence path as the demo, without touching Cedar Watch data or the research logs. Everything stays in memory in the browser; exports can contain sensitive source text. Synthetic fixtures are in `fixtures/import/`. See the [import contract](./docs/import-contract.md) for structures, temporal/grouping/unit rules, limits, and the acceptance checklist.
@@ -100,6 +108,8 @@ Evaluation questions and answer choices use readable claims rather than syntheti
 - [Add Data import contract](./docs/import-contract.md) — formats, evidence links, temporal and unit rules, limits, privacy, fixtures.
 - [Usage story](./docs/usage-story.md) — a demonstration from situation to evidence trail.
 - [Explanations, evidence quality, and what-if](./docs/explanations-and-what-if.md) — factor comparison, decision path, evidence-quality matrix, hypothetical runs, limits, and demo walkthrough.
+- [Draft pilot protocol](./docs/pilot-study-protocol.md) — within-participant conditions, assignment, consent status, limitations, and launch gates.
+- [Pilot response data dictionary](./docs/pilot-study-data-dictionary.md) — local schema, fields, exports, and privacy boundaries.
 
 ## Limitations
 

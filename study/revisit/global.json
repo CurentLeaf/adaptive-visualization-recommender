@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/GlobalConfigSchema.json",
+  "configs": {
+    "cedar-watch-pilot": {
+      "path": "cedar-watch-pilot/StudyConfig.json"
+    }
+  },
+  "configsList": ["cedar-watch-pilot"]
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 48" role="img" aria-labelledby="title">
+  <title id="title">Cedar Watch synthetic pilot</title>
+  <rect width="240" height="48" rx="8" fill="#eff6ff"/>
+  <circle cx="24" cy="24" r="13" fill="#2563eb"/>
+  <path d="M17 25h14M24 17v15" stroke="#fff" stroke-width="2"/>
+  <text x="46" y="30" fill="#172033" font-family="sans-serif" font-size="16">Cedar Watch · Draft</text>
+</svg>

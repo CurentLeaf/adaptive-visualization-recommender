@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "Cedar Watch Visualization Pilot (Draft)",
+    "version": "draft-1",
+    "authors": [],
+    "date": "2026-11-03",
+    "description": "A draft exploratory within-participant comparison using fictional synthetic evidence. Investigator approval is required before recruitment.",
+    "organizations": []
+  },
+  "uiConfig": {
+    "logoPath": "cedar-watch-pilot/assets/logo.svg",
+    "contactEmail": "",
+    "withProgressBar": true,
+    "withSidebar": false,
+    "recordAudio": false,
+    "recordScreen": false
+  },
+  "components": {
+    "pilot": {
+      "type": "react-component",
+      "path": "cedar-watch-pilot/StudyComponent.tsx",
+      "description": "Consent, separate practice, ten evidence-interpretation trials, usability questions, and debrief.",
+      "instruction": "Complete the draft study shown here. Do not enter personal or operational information.",
+      "response": [
+        {
+          "id": "pilotSession",
+          "prompt": "Study session responses",
+          "location": "belowStimulus",
+          "type": "reactive"
+        }
+      ]
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": ["pilot"]
+  }
+}

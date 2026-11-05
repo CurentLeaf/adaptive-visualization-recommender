@@ -88,6 +88,8 @@ export function EvidencePanel({
   recommendation,
   modeling,
   audience = 'Analyst',
+  collapseTechnicalDetails = false,
+  showTechnicalIdentifiers = true,
   onClose,
 }: {
   report?: Report;
@@ -102,6 +104,8 @@ export function EvidencePanel({
   recommendation?: VisualizationRecommendation;
   modeling?: ModelingRecommendation;
   audience?: AudienceMode;
+  collapseTechnicalDetails?: boolean;
+  showTechnicalIdentifiers?: boolean;
   onClose?: () => void;
 }) {
   const verificationWarning = report && !report.human_verified;
@@ -133,7 +137,10 @@ export function EvidencePanel({
         </p>
       ) : (
         <>
-          <div className="eyebrow">Synthetic source report · {report.report_id}</div>
+          <div className="eyebrow">
+            Synthetic source report
+            {showTechnicalIdentifiers ? ` · ${report.report_id}` : ''}
+          </div>
           <h3>{report.report_title}</h3>
           <section className="inspector-section" aria-labelledby="reported-observation-title">
             <h4 id="reported-observation-title">1. Reported observation</h4>
@@ -233,7 +240,10 @@ export function EvidencePanel({
               ))}
             </ol>
           </section>
-          <details className="technical-details" open={audience === 'Analyst'}>
+          <details
+            className="technical-details"
+            {...(!collapseTechnicalDetails && audience === 'Analyst' ? { open: true } : {})}
+          >
             <summary>5. Technical details, analysis, and mappings</summary>
             <dl className="detail-grid">
               <dt>Internal event ID</dt>
@@ -265,7 +275,7 @@ export function EvidencePanel({
             <p className="notice-text">
               High salience means attention priority, not verified truth.
             </p>
-          <details open={audience === 'Analyst'}>
+          <details {...(!collapseTechnicalDetails && audience === 'Analyst' ? { open: true } : {})}>
             <summary>Level 3 · Inputs and visual mapping</summary>
             <p className="help">
               Available dataset fields are listed separately in Dataset profile. Modeling inputs and
@@ -339,7 +349,7 @@ export function EvidencePanel({
               </table>
             </div>
           </details>
-          <details open={audience === 'Analyst'}>
+          <details {...(!collapseTechnicalDetails && audience === 'Analyst' ? { open: true } : {})}>
             <summary>Level 3 · Data provenance and processing trail</summary>
             <p className="help">
               Recorded pipeline metadata is shown as recorded. A visualization explanation is not

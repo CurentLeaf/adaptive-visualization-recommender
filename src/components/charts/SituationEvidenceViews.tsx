@@ -17,11 +17,13 @@ export function ReportComparisonTable({
   sources,
   selectedId,
   onSelect,
+  showInternalIds = true,
 }: {
   reports: Report[];
   sources: Source[];
   selectedId: string;
   onSelect: (id: string) => void;
+  showInternalIds?: boolean;
 }) {
   const sourceNames = new Map(sources.map((source) => [source.source_id, source.display_name]));
   const chronological = [...reports].sort((left, right) =>
@@ -58,7 +60,7 @@ export function ReportComparisonTable({
                 >
                   {report.report_title}
                 </button>
-                <small className="secondary-id">{report.report_id}</small>
+                {showInternalIds && <small className="secondary-id">{report.report_id}</small>}
               </th>
               <td>{sourceNames.get(report.source_id) ?? 'Source name not recorded'}</td>
               <td>
