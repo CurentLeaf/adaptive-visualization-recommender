@@ -60,6 +60,28 @@ function startTrial() {
 
 describe('pilot participant flow', () => {
   beforeEach(() => localStorage.clear());
+
+  it('shows preparation without creating a session before consent', () => {
+    render(<StudyApp />);
+    expect(screen.getByRole('navigation', { name: 'Study progress' }).querySelector('[aria-current="step"]')).toHaveTextContent('Prepare');
+    expect(screen.getByRole('complementary', { name: 'What to expect' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Skip to study content' })).toHaveAttribute('href', '#study-content');
+    expect(loadSession()).toBeNull();
+  });
+
+  it('links trial navigation to focusable evidence and response sections', () => {
+    saveSession(sessionForGroup(0));
+    render(<StudyApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    expect(screen.getByRole('progressbar', { name: '0 of 10 trials recorded' })).toHaveAttribute('value', '0');
+    for (const name of ['Review evidence', 'Your response']) {
+      const link = screen.getByRole('link', { name });
+      const target = document.querySelector(link.getAttribute('href')!);
+      expect(target).toHaveAttribute('tabindex', '-1');
+    }
+    expect(screen.getByRole('navigation', { name: 'Study progress' }).querySelector('[aria-current="step"]')).toHaveTextContent('Explore evidence');
+  });
+
   afterEach(cleanup);
 
   it('renders the fixed baseline and task-aware recommendation conditions', () => {
