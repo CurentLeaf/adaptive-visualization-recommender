@@ -7,7 +7,7 @@ export const RESPONSE_SCHEMA_VERSION = 1;
 export const STIMULUS_SEED = 271828;
 export const STIMULUS_VERSION = 'cedar-watch-generator-1';
 export const STORAGE_KEY = 'avr-cedar-watch-pilot-v1';
-export const STUDY_UI_VERSION = 'rehearsal-2026.11.06.1';
+export const STUDY_UI_VERSION = 'rehearsal-2026.11.06.2';
 const TRIAL_DRAFT_PREFIX = `${STORAGE_KEY}:draft:`;
 
 export const scenarioOrder: ScenarioId[] = [

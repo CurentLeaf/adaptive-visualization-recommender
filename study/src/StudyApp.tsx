@@ -1,4 +1,4 @@
-import { ArrowUpRight, BarChart3, Check, FileText, LockKeyhole } from 'lucide-react';
+import { ArrowUpRight, Check, LockKeyhole } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FictionalGridPlot, ObservationTimeline, ReportComparisonTable } from '../../src/components/charts/SituationEvidenceViews';
 import { VegaChart } from '../../src/components/charts/VegaChart';
@@ -38,7 +38,7 @@ function StudyChrome({ stage, completed = 0 }: { stage: Stage; completed?: numbe
     <>
       <a className="study-skip" href="#study-content">Skip to study content</a>
       <div className="study-topbar">
-        <div className="study-brand"><span className="study-brand-icon"><BarChart3 size={22} aria-hidden="true" /></span><span>Cedar Watch<small>Visualization research</small></span></div>
+        <div className="study-brand"><span>Cedar Watch<small>Visualization research</small></span></div>
         <span className="study-draft-badge">Draft pilot</span>
       </div>
       <nav className="study-journey" aria-label="Study progress">
@@ -393,8 +393,7 @@ export function StudyApp({
           </button>
         </section>
         <aside className="study-overview" aria-label="What to expect">
-          <FileText size={28} aria-hidden="true" />
-          <h2>A clear path through the evidence.</h2>
+          <h2>What to expect</h2>
           <ol>
             <li><strong>Get familiar</strong><span>Read the draft consent and try a practice exercise.</span></li>
             <li><strong>Explore ten trials</strong><span>Inspect the reports, then record a response and two ratings.</span></li>
