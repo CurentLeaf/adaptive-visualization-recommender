@@ -1,3 +1,4 @@
+import { ArrowUpRight, Check, LockKeyhole } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FictionalGridPlot, ObservationTimeline, ReportComparisonTable } from '../../src/components/charts/SituationEvidenceViews';
 import { VegaChart } from '../../src/components/charts/VegaChart';
@@ -29,6 +30,32 @@ import { getQuestion } from './questions';
 import { containsTextMark, getScenarioView, sourceCommit } from './studyModel';
 
 type Stage = 'introduction' | 'consent' | 'practice' | 'trial' | 'survey' | 'debrief' | 'declined' | 'exited' | 'saved';
+
+function StudyChrome({ stage, completed = 0 }: { stage: Stage; completed?: number }) {
+  const current = ['introduction', 'consent', 'practice'].includes(stage) ? 0
+    : stage === 'trial' ? 1 : ['survey', 'debrief'].includes(stage) ? 2 : -1;
+  return (
+    <>
+      <a className="study-skip" href="#study-content">Skip to study content</a>
+      <div className="study-topbar">
+        <div className="study-brand"><span>Cedar Watch<small>Visualization research</small></span></div>
+        <span className="study-draft-badge">Draft pilot</span>
+      </div>
+      <nav className="study-journey" aria-label="Study progress">
+        <ol>{['Prepare', 'Explore evidence', 'Reflect'].map((label, index) => (
+          <li key={label} aria-current={current === index ? 'step' : undefined} data-complete={current > index}>
+            <span>{current > index ? <Check size={15} aria-hidden="true" /> : index + 1}</span>{label}
+          </li>
+        ))}</ol>
+        <span className="study-local"><LockKeyhole size={14} aria-hidden="true" /> Local rehearsal</span>
+      </nav>
+      {(stage === 'trial' || stage === 'survey' || stage === 'debrief') && (
+        <div className="study-progress"><label htmlFor="trial-progress">{completed} of 10 trials recorded</label><progress id="trial-progress" max={10} value={completed} /></div>
+      )}
+      <div id="study-content" tabIndex={-1} />
+    </>
+  );
+}
 
 const anonymousId = (prefix: string) => {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -339,11 +366,13 @@ export function StudyApp({
   if (stage === 'introduction') {
     return (
       <main className="study-shell">
-        <header className="study-header">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
+        <header className="study-header study-hero">
           <p className="study-kicker">Draft research pilot · fictional synthetic evidence</p>
           <h1>Cedar Watch visualization pilot</h1>
         </header>
-        <section className="study-card">
+        <div className="study-welcome-grid">
+        <section className="study-card study-introduction">
           <h2>Study introduction</h2>
           <p>
             This draft pilot compares two ways of viewing the same scripted Cedar Watch evidence:
@@ -363,6 +392,16 @@ export function StudyApp({
             Continue to draft consent
           </button>
         </section>
+        <aside className="study-overview" aria-label="What to expect">
+          <h2>What to expect</h2>
+          <ol>
+            <li><strong>Get familiar</strong><span>Read the draft consent and try a practice exercise.</span></li>
+            <li><strong>Explore ten trials</strong><span>Inspect the reports, then record a response and two ratings.</span></li>
+            <li><strong>Share your perspective</strong><span>Finish with a brief usability questionnaire.</span></li>
+          </ol>
+          <p><LockKeyhole size={16} aria-hidden="true" /> Fictional data. Responses stay in this browser until exported or cleared.</p>
+        </aside>
+        </div>
       </main>
     );
   }
@@ -370,6 +409,7 @@ export function StudyApp({
   if (stage === 'saved' && session) {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card">
           <h1>Saved local session</h1>
           <p>
@@ -404,6 +444,7 @@ export function StudyApp({
   if (stage === 'consent') {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card">
           <h1>Draft consent information</h1>
           <p>
@@ -467,6 +508,7 @@ export function StudyApp({
   if (stage === 'declined') {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card" role="status">
           <h1>You declined</h1>
           <p>No study session or response was saved. You may close this page.</p>
@@ -478,6 +520,7 @@ export function StudyApp({
   if (stage === 'practice') {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card">
           <p className="study-kicker">Practice · not an experimental trial</p>
           <h1>Practice the evidence view</h1>
@@ -485,6 +528,7 @@ export function StudyApp({
             This separate fictional example is for learning the controls. It is not one of the
             Cedar Watch trial scenarios and will not be included in the exported responses.
           </p>
+          <div className="tablewrap" role="region" aria-label="Practice reports" tabIndex={0}>
           <table>
             <caption>Fictional Harbor Lane practice reports</caption>
             <thead>
@@ -495,6 +539,7 @@ export function StudyApp({
               <tr><td>Practice log B</td><td>09:10</td><td>09:42</td><td>About 3</td></tr>
             </tbody>
           </table>
+          </div>
           <p>
             In the practice display, a count that is not recorded is unknown—not zero. Observation
             and receipt times describe different events. Reports can overlap and should not be
@@ -537,6 +582,8 @@ export function StudyApp({
       : [];
     return (
       <main className="study-shell study-trial">
+        <StudyChrome stage={stage} completed={session.responses.length} />
+        <nav className="study-trial-nav" aria-label="Trial sections"><a href="#trial-evidence">Review evidence</a><a href="#trial-response">Your response <ArrowUpRight size={16} aria-hidden="true" /></a></nav>
         <header className="study-header">
           <p className="study-kicker">
             {STUDY_UI_VERSION} · Trial {session.responses.length + 1} of 10
@@ -620,7 +667,7 @@ export function StudyApp({
             )}
           </section>
         )}
-        <section className="study-card">
+        <section className="study-card" id="trial-evidence" tabIndex={-1}>
           <h2>{trial.condition === 'recommended' ? '3' : '2'}. Available evidence</h2>
           {trial.condition === 'baseline' && (
             <p>
@@ -669,7 +716,7 @@ export function StudyApp({
           collapseTechnicalDetails
           showTechnicalIdentifiers={false}
         />
-        <section className="study-card response-card" aria-label="Trial response panel">
+        <section className="study-card response-card" id="trial-response" tabIndex={-1} aria-label="Trial response panel">
           <h2>{trial.condition === 'recommended' ? '4' : '3'}. Your response</h2>
           <p className="question-repeat">
             <strong>Question:</strong> {question.prompt}
@@ -783,6 +830,7 @@ export function StudyApp({
   if (stage === 'exited') {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card">
           <h1>Session paused</h1>
           <p>
@@ -805,6 +853,7 @@ export function StudyApp({
   if (stage === 'debrief' && session) {
     return (
       <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
         <section className="study-card">
           <p className="study-kicker">Debrief · draft protocol</p>
           <h1>Thank you</h1>
@@ -836,6 +885,7 @@ export function StudyApp({
 
   return (
     <main className="study-shell">
+        <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
       <section className="study-card">
         <h1>Session not available</h1>
         <p>Start again from the introduction or clear the saved local session.</p>
@@ -859,6 +909,7 @@ function UsabilitySurvey({
   const [easier, setEasier] = useState('');
   return (
     <main className="study-shell">
+        <StudyChrome stage="survey" completed={10} />
       <section className="study-card response-card">
         <p className="study-kicker">After-trial questions</p>
         <h1>Usability and preference</h1>
