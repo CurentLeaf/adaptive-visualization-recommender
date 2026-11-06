@@ -5,7 +5,7 @@ accept arbitrary imports, or enable production participant collection. The proto
 requires investigator and institutional approval before recruitment. All participant-facing
 stimuli are fictional synthetic Cedar Watch reports.
 
-The current rehearsal interface is `rehearsal-2026.11.06.1`. New session exports record this
+The current rehearsal interface is `rehearsal-2026.11.06.2`. New session exports record this
 optional UI revision while retaining response schema `1` and accepting older saved sessions. Trial
 answers, confidence, difficulty, evidence selections, and active-time metadata are saved as separate
 validated per-session/per-trial local drafts until submission; drafts are not included in exports.
@@ -228,7 +228,7 @@ keyboard skip navigation, selected-answer cards, and a horizontally scrollable p
 The introduction pairs the existing protocol information with a compact “what to expect” panel.
 No external assets, tracking, new backend, or participant collection service were added.
 Questions, counterbalancing, chart encodings, scoring, and export schema remain unchanged.
-Exports identify this interface with `rehearsal-2026.11.06.1`.
+Exports identify this interface with `rehearsal-2026.11.06.2`.
 
 Design references inspected on November 6, 2026:
 
@@ -241,3 +241,21 @@ Design references inspected on November 6, 2026:
 These references informed original styling; their branding, images, and source code were not copied.
 The milestones are informational rather than links so participants cannot skip consent or trials.
 The trial bar counts submitted responses only, not a partially completed draft.
+
+## Content-first layout revision
+
+The second November 6 interface revision replaces nested cards, tinted section backgrounds,
+rounded answer tiles, and the accent stripe around responses with an open document layout.
+Whitespace and thin section rules separate evidence, inspection, and response. Evidence keeps
+its wide canvas; responses use a 760px maximum reading width. The question receives a restrained
+serif heading; native inputs, answer wording/order, data, encodings, timing, and storage are unchanged.
+Focus remains visible, including a subtle underline when a new trial focuses its question.
+The CSS is consolidated into one study-scoped stylesheet rather than accumulated overrides.
+
+Research references (accessed November 6, 2026):
+- https://design-system.service.gov.uk/styles/layout/ — readable line lengths and responsive layout.
+- https://design-system.service.gov.uk/components/radios/ — plain, vertically stacked radio choices.
+- https://service-manual.ons.gov.uk/design-system/patterns/question — question-focused survey structure.
+
+These inform visual hierarchy; the existing experimental flow is retained rather than splitting
+trials across new pages or changing any response instrument. No external fonts or assets are loaded.
