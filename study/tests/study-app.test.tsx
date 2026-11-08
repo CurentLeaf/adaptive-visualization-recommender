@@ -21,7 +21,7 @@ vi.mock('../../src/components/charts/VegaChart', () => ({
   ),
 }));
 
-function sessionForGroup(group: number): PilotSession {
+function sessionForGroup(group: number, completedTrials = 0): PilotSession {
   const participantId = Array.from({ length: 1000 }, (_, index) => `participant-${index}`).find(
     (id) => assignTrials(id).group === group,
   )!;
@@ -38,7 +38,20 @@ function sessionForGroup(group: number): PilotSession {
     counterbalanceGroup: assigned.group,
     assignedOrder: assigned.trials.map((trial) => trial.trialId),
     status: 'in_progress',
-    responses: [],
+    responses: assigned.trials.slice(0, completedTrials).map((trial, trialIndex) => ({
+      ...trial,
+      trialIndex,
+      recommendedVisualization: trial.condition === 'recommended' ? 'test-chart' : null,
+      selectedVisualization: 'report-comparison-table',
+      selectedReports: [],
+      evidenceInteractions: [],
+      answerKind: 'unknown',
+      answerId: null,
+      confidence: 3,
+      perceivedDifficulty: 3,
+      activeTrialTimeMs: 1000,
+      visibilityInterruptions: 0,
+    })),
     usability: {
       evidenceClarity: null,
       conditionPreference: null,
@@ -58,6 +71,13 @@ function startTrial() {
   fireEvent.click(screen.getByRole('button', { name: 'Begin experimental trials' }));
 }
 
+function resumeThroughPractice() {
+  fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'No' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Check practice response' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Begin experimental trials' }));
+}
+
 describe('pilot participant flow', () => {
   beforeEach(() => localStorage.clear());
 
@@ -72,7 +92,7 @@ describe('pilot participant flow', () => {
   it('links trial navigation to focusable evidence and response sections', () => {
     saveSession(sessionForGroup(0));
     render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
     expect(screen.getByRole('progressbar', { name: '0 of 10 trials recorded' })).toHaveAttribute('value', '0');
     for (const name of ['Review evidence', 'Your response']) {
       const link = screen.getByRole('link', { name });
@@ -82,13 +102,29 @@ describe('pilot participant flow', () => {
     expect(screen.getByRole('navigation', { name: 'Study progress' }).querySelector('[aria-current="step"]')).toHaveTextContent('Explore evidence');
   });
 
+  it('requires the separate practice exercise again when an in-progress session is resumed', () => {
+    saveSession(sessionForGroup(0));
+    render(<StudyApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    expect(screen.getByRole('heading', { name: 'Practice the evidence view' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Trial 1 of 10/ })).not.toBeInTheDocument();
+  });
+
+  it('routes a ten-trial saved session through practice to the survey, not a missing trial', () => {
+    saveSession(sessionForGroup(0, 10));
+    render(<StudyApp />);
+    resumeThroughPractice();
+    expect(screen.getByRole('heading', { name: 'Usability and preference' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Session not available' })).not.toBeInTheDocument();
+  });
+
   afterEach(cleanup);
 
   it('renders the fixed baseline and task-aware recommendation conditions', () => {
     const baseline = sessionForGroup(0);
     saveSession(baseline);
     const baselineView = render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
     expect(screen.getByText('Evidence-only view')).toBeInTheDocument();
     expect(screen.getByText(/Fixed evidence-only view: report comparison table/)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Task-aware recommendation' })).not.toBeInTheDocument();
@@ -97,7 +133,7 @@ describe('pilot participant flow', () => {
     const recommended = sessionForGroup(1);
     saveSession(recommended);
     render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
     expect(screen.getByRole('region', { name: 'Task-aware recommendation' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /^Task-aware recommended/ })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: /Source-reported observations/ })).toBeInTheDocument();
@@ -146,7 +182,7 @@ describe('pilot participant flow', () => {
     const recommended = sessionForGroup(1);
     saveSession(recommended);
     const view = render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
 
     expect(document.querySelector('.study-kicker')?.textContent).toContain('Trial 1 of 10');
     expect(screen.getByText('Task-aware recommended view')).toBeInTheDocument();
@@ -183,7 +219,7 @@ describe('pilot participant flow', () => {
 
     view.unmount();
     render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
     expect(screen.getByRole('radio', { name: /I cannot determine an answer/ })).toBeChecked();
     expect(screen.getByLabelText('Confidence')).toHaveValue('4');
     expect(screen.getByLabelText('Perceived difficulty')).toHaveValue('2');
@@ -206,7 +242,7 @@ describe('pilot participant flow', () => {
     const session = sessionForGroup(0);
     saveSession(session);
     render(<StudyApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume saved session' }));
+    resumeThroughPractice();
 
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));

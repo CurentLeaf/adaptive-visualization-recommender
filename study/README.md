@@ -156,9 +156,29 @@ Run the local host with the template's supported development command (`yarn serv
 template). The complete upstream host has not been vendored or run as part of this repository task;
 the runnable, tested subset is the independent local Vite app plus the schema-versioned config and
 documented adapter. The institutional host should validate the study config and acceptance-test
-storage and response export before it is considered ready. No cross-origin iframe bridge is used;
-if a future implementation introduces one, it must validate exact origin, `event.source`, message
-shape/schema, and response IDs before accepting messages.
+storage and response export before it is considered ready. The standalone app also contains a
+restricted ReVISit iframe bridge for the legacy website-component path. It is disabled unless the
+build explicitly sets `VITE_REVISIT_PARENT_ORIGINS` to a comma-separated exact-origin allow-list and
+the URL's `parentOrigin`, browser referrer, and actual parent message origin all match. HTTPS origins
+are accepted in all builds. For the documented local HTTP host at `http://localhost:8080`, opt in
+only in the development host command with both exact settings:
+
+```bash
+VITE_REVISIT_PARENT_ORIGINS=http://localhost:8080 VITE_REVISIT_ALLOW_HTTP_LOOPBACK=true yarn serve
+```
+
+HTTP is accepted only when Vite reports a development build, the opt-in is exactly `true`, and the
+allow-listed origin is exactly `http://localhost:<port>`, `http://127.0.0.1:<port>`, or
+`http://[::1]:<port>`. This does not permit non-loopback HTTP and is disabled in production builds.
+Never use a wildcard origin. If local development is not using HTTP loopback, use an HTTPS host
+origin and list that exact origin instead.
+The bridge validates the ReVISit envelope and session schema, ignores host-replayed `ANSWERS`, and
+posts a completed `pilotSession` only after `STUDY_DATA` establishes the handshake. This is not a
+durable-storage acknowledgment. It also sends only sessions started after consent during the current
+page lifetime; saved browser sessions and sessions resumed after reload are never auto-submitted to
+a host. This deliberately fails closed to prevent a previous browser participant's session from
+being attached to a new host participant. Without the build-time allow-list the study remains
+standalone.
 
 ## Storage, privacy, and deployment
 

@@ -28,6 +28,7 @@ import {
 } from './protocol';
 import { getQuestion } from './questions';
 import { containsTextMark, getScenarioView, sourceCommit } from './studyModel';
+import { canSubmitHostedSession, createIframeBridge } from './iframeBridge';
 
 type Stage = 'introduction' | 'consent' | 'practice' | 'trial' | 'survey' | 'debrief' | 'declined' | 'exited' | 'saved';
 
@@ -99,11 +100,38 @@ export function StudyApp({
   const [practiceFeedback, setPracticeFeedback] = useState('');
   const [draftState, setDraftState] = useState<{ key: string; draft: TrialDraft } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [hostedMode, setHostedMode] = useState(false);
+  const [bridgeEnabled, setBridgeEnabled] = useState(false);
+  const [bridgeInitialized, setBridgeInitialized] = useState(false);
+  const hostedSessionStarted = useRef(false);
   const activeMilliseconds = useRef(0);
   const visibleSince = useRef<number | null>(null);
   const visibilityInterruptions = useRef(0);
   const submittedDraftKey = useRef<string | null>(null);
   const trialHeadingRef = useRef<HTMLHeadingElement>(null);
+  const bridgeRef = useRef<ReturnType<typeof createIframeBridge> | null>(null);
+
+  useEffect(() => {
+    const trustedOrigins = (import.meta.env.VITE_REVISIT_PARENT_ORIGINS ?? '')
+      .split(',')
+      .map((origin: string) => origin.trim())
+      .filter(Boolean);
+    const allowHttpLoopback = import.meta.env.DEV && import.meta.env.VITE_REVISIT_ALLOW_HTTP_LOOPBACK === 'true';
+    const bridge = createIframeBridge(
+      window.location,
+      window,
+      document.referrer,
+      () => undefined,
+      trustedOrigins,
+      allowHttpLoopback,
+    );
+    bridgeRef.current = bridge;
+    setHostedMode(window.parent !== window);
+    setBridgeEnabled(bridge.enabled);
+    setBridgeInitialized(true);
+    bridge.start();
+    return () => bridge.dispose();
+  }, []);
 
   const assignment = session ? assignTrials(session.participantId) : null;
   const trial = assignment && session ? assignment.trials[session.responses.length] : undefined;
@@ -234,6 +262,7 @@ export function StudyApp({
 
   useEffect(() => {
     if (session) onSessionChange?.(session);
+    if (canSubmitHostedSession(hostedSessionStarted.current, session)) bridgeRef.current?.postSession(session);
   }, [session, onSessionChange]);
 
   const commitSession = (updated: PilotSession) => {
@@ -248,6 +277,14 @@ export function StudyApp({
       );
       return false;
     }
+  };
+
+  const clearCurrentSession = () => {
+    bridgeRef.current?.resetCompletion();
+    hostedSessionStarted.current = false;
+    clearSession();
+    setSession(null);
+    setStage('introduction');
   };
 
   const acceptConsent = () => {
@@ -274,7 +311,10 @@ export function StudyApp({
         easierCondition: null,
       },
     };
-    if (commitSession(initial)) setStage('practice');
+    if (commitSession(initial)) {
+      hostedSessionStarted.current = bridgeRef.current?.enabled ?? false;
+      setStage('practice');
+    }
   };
 
   const elapsedActiveMs = () =>
@@ -407,6 +447,7 @@ export function StudyApp({
   }
 
   if (stage === 'saved' && session) {
+    const hostedRecoveryBlocked = !bridgeInitialized || hostedMode;
     return (
       <main className="study-shell">
         <StudyChrome stage={stage} completed={session?.responses.length ?? 0} />
@@ -416,22 +457,28 @@ export function StudyApp({
             This browser already contains an anonymous {session.status === 'complete' ? 'completed' : 'incomplete'} pilot session.
             If this is a shared device, do not show it to another participant.
           </p>
+          {!bridgeInitialized && <p role="status">Checking whether this session can be resumed safely…</p>}
+          {bridgeInitialized && hostedMode && (
+            <p role="alert">
+              This saved session cannot be resumed in the hosted study. The host does not yet
+              provide a stable binding between this browser session and its participant record, so
+              resuming could submit data to the wrong participant. Clear this local session only
+              if you understand that it removes the browser copy; it cannot delete data previously
+              sent to the host.
+            </p>
+          )}
           <div className="study-actions">
-            <button
+            {!hostedRecoveryBlocked && <button
               className="button primary"
               type="button"
-              onClick={() => setStage(session.status === 'complete' ? 'debrief' : session.responses.length === 10 ? 'survey' : 'trial')}
+              onClick={() => setStage(session.status === 'complete' ? 'debrief' : 'practice')}
             >
               {session.status === 'complete' ? 'View completed debrief' : 'Resume saved session'}
-            </button>
+            </button>}
             <button
               className="button secondary"
               type="button"
-              onClick={() => {
-                clearSession();
-                setSession(null);
-                setStage('introduction');
-              }}
+              onClick={clearCurrentSession}
             >
               Clear session and start new
             </button>
@@ -463,6 +510,16 @@ export function StudyApp({
             storage is not a central research database. Approved reVISit hosting may store
             participant metadata; the institution must review and configure that separately.
           </p>
+          {bridgeEnabled && (
+            <p role="note">
+              <strong>Hosted study data transfer:</strong> when this session is completed, the full
+              session response is automatically sent to ReVISit. ReVISit may store it in the storage
+              system configured by the study host, including Supabase if configured. Clearing this
+              browser removes only its local copy; it does not delete a copy already sent to the
+              host or its storage provider. This study does not specify the host’s retention or
+              deletion policy; confirm that policy with the study team before agreeing.
+            </p>
+          )}
           <p>
             <strong>Risks and benefits:</strong> no direct benefit is promised. No sensitive
             personal information is requested. The research contact and approved consent language
@@ -563,7 +620,7 @@ export function StudyApp({
               className="button primary"
               type="button"
               disabled={!practiceFeedback}
-              onClick={() => setStage('trial')}
+              onClick={() => setStage((session?.responses.length ?? 0) >= 10 ? 'survey' : 'trial')}
             >
               Begin experimental trials
             </button>
@@ -842,7 +899,7 @@ export function StudyApp({
               <button className="button secondary" type="button" onClick={() => exportSession(session)}>Export JSON</button>
               <button className="button secondary" type="button" onClick={() => exportCsv(session)}>Export CSV</button>
               <button className="button ghost" type="button" onClick={() => setStage('trial')}>Resume</button>
-              <button className="button ghost" type="button" onClick={() => { clearSession(); setSession(null); setStage('introduction'); }}>Clear local session</button>
+              <button className="button ghost" type="button" onClick={clearCurrentSession}>Clear local session</button>
             </div>
           )}
         </section>
@@ -873,10 +930,18 @@ export function StudyApp({
             Local JSON/CSV export is for investigator-approved rehearsal and analysis only.
             Browser storage is not a central research database.
           </p>
+          {bridgeEnabled && (
+            <p role="note">
+              The study sends the completed session to the ReVISit parent using a browser message.
+              This app has no acknowledgment that ReVISit received or persisted it, so do not assume
+              the responses are stored centrally. Any configured host storage and its retention or
+              deletion policy must be confirmed with the study team.
+            </p>
+          )}
           <div className="study-actions">
             <button className="button primary" type="button" onClick={() => exportSession(session)}>Export validated JSON</button>
             <button className="button secondary" type="button" onClick={() => exportCsv(session)}>Export validated CSV</button>
-            <button className="button ghost" type="button" onClick={() => { clearSession(); setSession(null); setStage('introduction'); }}>Clear local session</button>
+            <button className="button ghost" type="button" onClick={clearCurrentSession}>Clear local session</button>
           </div>
         </section>
       </main>
@@ -889,7 +954,7 @@ export function StudyApp({
       <section className="study-card">
         <h1>Session not available</h1>
         <p>Start again from the introduction or clear the saved local session.</p>
-        <button className="button primary" type="button" onClick={() => { clearSession(); setSession(null); setStage('introduction'); }}>
+        <button className="button primary" type="button" onClick={clearCurrentSession}>
           Start over
         </button>
       </section>
