@@ -25,6 +25,10 @@ export function VegaChart({
     if (!host.current) return;
     let active = true;
     let finalize: (() => void) | undefined;
+    let removeBrushListener: (() => void) | undefined;
+    let detachMouseUp: (() => void) | undefined;
+    let pendingBrush: [string, string] | undefined;
+    let brushCommitTimer: number | undefined;
     embed(host.current, spec as VisualizationSpec, { actions: false, renderer: 'svg' })
       .then((result) => {
         if (!active) {
@@ -45,7 +49,7 @@ export function VegaChart({
             recurse: false,
           });
           if (Object.prototype.hasOwnProperty.call(state.signals, 'timeBrush')) {
-            result.view.addSignalListener('timeBrush', (_name, value) => {
+            const brushListener = (_name: string, value: unknown) => {
               const selection = value && typeof value === 'object'
                 ? Object.values(value as Record<string, unknown>)
                 : [];
@@ -54,12 +58,28 @@ export function VegaChart({
                   Array.isArray(entry) && entry.length === 2,
               );
               if (range?.length === 2) {
-                callbacks.current.onBrush?.(
+                pendingBrush = [
                   new Date(range[0]).toISOString().slice(0, 10),
                   new Date(range[1]).toISOString().slice(0, 10),
-                );
+                ];
+              } else {
+                pendingBrush = undefined;
               }
-            });
+            };
+            result.view.addSignalListener('timeBrush', brushListener);
+            removeBrushListener = () => result.view.removeSignalListener('timeBrush', brushListener);
+            const onMouseUp = () => {
+              if (!pendingBrush) return;
+              if (brushCommitTimer !== undefined) window.clearTimeout(brushCommitTimer);
+              brushCommitTimer = window.setTimeout(() => {
+                brushCommitTimer = undefined;
+                const range = pendingBrush;
+                pendingBrush = undefined;
+                if (active && range) callbacks.current.onBrush?.(...range);
+              }, 0);
+            };
+            window.addEventListener('mouseup', onMouseUp);
+            detachMouseUp = () => window.removeEventListener('mouseup', onMouseUp);
           }
         }
         callbacks.current.onReady?.();
@@ -71,6 +91,9 @@ export function VegaChart({
       });
     return () => {
       active = false;
+      if (brushCommitTimer !== undefined) window.clearTimeout(brushCommitTimer);
+      detachMouseUp?.();
+      removeBrushListener?.();
       finalize?.();
     };
   }, [spec]);

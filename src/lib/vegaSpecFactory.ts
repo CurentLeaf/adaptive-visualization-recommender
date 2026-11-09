@@ -140,7 +140,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
                   x: {
                     field: 'observed_at',
                     type: 'temporal',
-                    timeUnit: 'hours',
+                    timeUnit: 'utcyearmonthdatehours',
                     title: 'Cedar Watch exercise hour',
                   },
                   y: {
@@ -151,7 +151,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
                   },
                   y2: { aggregate: 'mean', field: 'uncertainty_upper' },
                   tooltip: [
-                    { field: 'observed_at', type: 'temporal', timeUnit: 'hours' },
+                    { field: 'observed_at', type: 'temporal', timeUnit: 'utcyearmonthdatehours' },
                     { aggregate: 'mean', field: 'uncertainty_lower', title: 'Mean lower bound' },
                     { aggregate: 'mean', field: 'uncertainty_upper', title: 'Mean upper bound' },
                   ],
@@ -166,7 +166,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
             x: {
               field: 'observed_at',
               type: 'temporal',
-              timeUnit: 'hours',
+              timeUnit: 'utcyearmonthdatehours',
               title: 'Cedar Watch exercise hour',
             },
             y: {
@@ -175,7 +175,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
               title: 'Number of reports (not amount of activity)',
             },
             tooltip: [
-              { field: 'observed_at', type: 'temporal', timeUnit: 'hours' },
+              { field: 'observed_at', type: 'temporal', timeUnit: 'utcyearmonthdatehours' },
               { aggregate: 'count', title: 'Number of reports' },
             ],
           },
