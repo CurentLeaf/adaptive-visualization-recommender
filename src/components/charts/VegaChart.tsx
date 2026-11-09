@@ -46,7 +46,13 @@ export function VegaChart({
           });
           if (Object.prototype.hasOwnProperty.call(state.signals, 'timeBrush')) {
             result.view.addSignalListener('timeBrush', (_name, value) => {
-              const range = (value as { day?: [number, number] })?.day;
+              const selection = value && typeof value === 'object'
+                ? Object.values(value as Record<string, unknown>)
+                : [];
+              const range = selection.find(
+                (entry): entry is [string | number, string | number] =>
+                  Array.isArray(entry) && entry.length === 2,
+              );
               if (range?.length === 2) {
                 callbacks.current.onBrush?.(
                   new Date(range[0]).toISOString().slice(0, 10),

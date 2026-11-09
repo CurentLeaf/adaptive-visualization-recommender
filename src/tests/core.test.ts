@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { compile } from 'vega-lite';
 import type { TopLevelSpec } from 'vega-lite';
+import { parse as parseVega } from 'vega';
 import { generateSyntheticDataset } from '../data/syntheticGenerator';
 import { analyzeReports } from '../lib/analysis';
 import { DEFAULT_WEIGHTS } from '../domain/constants';
@@ -358,6 +359,12 @@ describe('visualization rules and specs', () => {
     expect(JSON.stringify(parallelSpec)).toContain('report_id');
     expect(JSON.stringify(parallelSpec)).toContain('isValid(datum.raw_value)');
     expect(() => compile(parallelSpec as unknown as TopLevelSpec)).not.toThrow();
+  });
+  it('compiles and parses time-brush charts without duplicate Vega signals', () => {
+    for (const pattern of ['line', 'area', 'error_band'] as const) {
+      const compiled = compile(createVegaSpec(pattern, datum) as unknown as TopLevelSpec).spec;
+      expect(() => parseVega(compiled)).not.toThrow();
+    }
   });
   it('uses fixed full-dataset parallel bounds and preserves unknown values', () => {
     const ranges = createDefaultParallelRanges();

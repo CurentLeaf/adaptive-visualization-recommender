@@ -131,7 +131,6 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
   if (pattern === 'line' || pattern === 'error_band' || pattern === 'area')
     return {
       ...common,
-      params: [{ name: 'timeBrush', select: { type: 'interval', encodings: ['x'] } }],
       layer: [
         ...(pattern === 'error_band'
           ? [
@@ -161,6 +160,7 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
             ]
           : []),
         {
+          params: [{ name: 'timeBrush', select: { type: 'interval', encodings: ['x'] } }],
           mark: { type: pattern === 'area' ? 'area' : 'line', point: true, color: '#345e9b' },
           encoding: {
             x: {
