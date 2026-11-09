@@ -1,6 +1,21 @@
 import { useEffect, useRef } from 'react';
 import embed from 'vega-embed';
 import type { VisualizationSpec } from 'vega-embed';
+
+function getBrushDateRange(value: unknown): [string, string] | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const range = Object.values(value as Record<string, unknown>).find(
+    (entry): entry is [unknown, unknown] => Array.isArray(entry) && entry.length === 2,
+  );
+  if (!range) return undefined;
+  const toDate = (item: unknown) =>
+    item instanceof Date ? item : new Date(item as string | number);
+  const start = toDate(range[0]);
+  const end = toDate(range[1]);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return undefined;
+  return [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)];
+}
+
 export function VegaChart({
   spec,
   onSelect,
@@ -25,10 +40,16 @@ export function VegaChart({
     if (!host.current) return;
     let active = true;
     let finalize: (() => void) | undefined;
-    let removeBrushListener: (() => void) | undefined;
-    let detachMouseUp: (() => void) | undefined;
-    let pendingBrush: [string, string] | undefined;
+    let removePointerDown: (() => void) | undefined;
+    let detachPointerUp: (() => void) | undefined;
+    let detachPointerCancel: (() => void) | undefined;
+    let activePointerId: number | undefined;
     let brushCommitTimer: number | undefined;
+    const reportError = (error: unknown) => {
+      if (!active) return;
+      if (host.current) host.current.textContent = `Chart unavailable: ${String(error)}`;
+      callbacks.current.onError?.(error);
+    };
     embed(host.current, spec as VisualizationSpec, { actions: false, renderer: 'svg' })
       .then((result) => {
         if (!active) {
@@ -49,51 +70,53 @@ export function VegaChart({
             recurse: false,
           });
           if (Object.prototype.hasOwnProperty.call(state.signals, 'timeBrush')) {
-            const brushListener = (_name: string, value: unknown) => {
-              const selection = value && typeof value === 'object'
-                ? Object.values(value as Record<string, unknown>)
-                : [];
-              const range = selection.find(
-                (entry): entry is [string | number, string | number] =>
-                  Array.isArray(entry) && entry.length === 2,
-              );
-              if (range?.length === 2) {
-                pendingBrush = [
-                  new Date(range[0]).toISOString().slice(0, 10),
-                  new Date(range[1]).toISOString().slice(0, 10),
-                ];
-              } else {
-                pendingBrush = undefined;
-              }
+            const onPointerDown = (event: Event) => {
+              const pointer = event as PointerEvent;
+              if (pointer.isPrimary === false || pointer.button !== 0 || activePointerId !== undefined) return;
+              activePointerId = pointer.pointerId;
             };
-            result.view.addSignalListener('timeBrush', brushListener);
-            removeBrushListener = () => result.view.removeSignalListener('timeBrush', brushListener);
-            const onMouseUp = () => {
-              if (!pendingBrush) return;
+            const onPointerUp = (event: PointerEvent) => {
+              if (activePointerId === undefined || event.pointerId !== activePointerId) return;
+              activePointerId = undefined;
               if (brushCommitTimer !== undefined) window.clearTimeout(brushCommitTimer);
               brushCommitTimer = window.setTimeout(() => {
                 brushCommitTimer = undefined;
-                const range = pendingBrush;
-                pendingBrush = undefined;
-                if (active && range) callbacks.current.onBrush?.(...range);
+                void result.view.runAsync()
+                  .then(() => {
+                    if (!active) return;
+                    const range = getBrushDateRange(result.view.signal('timeBrush'));
+                    if (range) callbacks.current.onBrush?.(...range);
+                  })
+                  .catch(reportError);
               }, 0);
             };
-            window.addEventListener('mouseup', onMouseUp);
-            detachMouseUp = () => window.removeEventListener('mouseup', onMouseUp);
+            const onPointerCancel = (event: PointerEvent) => {
+              if (event.pointerId !== activePointerId) return;
+              activePointerId = undefined;
+              const pointerUp = new Event('pointerup');
+              Object.defineProperties(pointerUp, {
+                pointerId: { value: event.pointerId },
+                isPrimary: { value: event.isPrimary },
+              });
+              window.dispatchEvent(pointerUp);
+            };
+            result.view.addEventListener('pointerdown', onPointerDown);
+            removePointerDown = () => result.view.removeEventListener('pointerdown', onPointerDown);
+            window.addEventListener('pointerup', onPointerUp);
+            detachPointerUp = () => window.removeEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerCancel);
+            detachPointerCancel = () => window.removeEventListener('pointercancel', onPointerCancel);
           }
         }
         callbacks.current.onReady?.();
       })
-      .catch((error) => {
-        if (!active) return;
-        if (host.current) host.current.textContent = `Chart unavailable: ${String(error)}`;
-        callbacks.current.onError?.(error);
-      });
+      .catch(reportError);
     return () => {
       active = false;
       if (brushCommitTimer !== undefined) window.clearTimeout(brushCommitTimer);
-      detachMouseUp?.();
-      removeBrushListener?.();
+      removePointerDown?.();
+      detachPointerUp?.();
+      detachPointerCancel?.();
       finalize?.();
     };
   }, [spec]);

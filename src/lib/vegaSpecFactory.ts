@@ -160,7 +160,17 @@ export function createVegaSpec(pattern: ChartPattern, data: Datum[]): Record<str
             ]
           : []),
         {
-          params: [{ name: 'timeBrush', select: { type: 'interval', encodings: ['x'] } }],
+          params: [{
+            name: 'timeBrush',
+            select: {
+              type: 'interval',
+              encodings: ['x'],
+              on: '[pointerdown[event.isPrimary && event.button === 0], window:pointerup[event.isPrimary]] > window:pointermove![event.isPrimary]',
+              clear: 'dblclick, window:pointercancel[event.isPrimary]',
+              translate: false,
+              zoom: false,
+            },
+          }],
           mark: { type: pattern === 'area' ? 'area' : 'line', point: true, color: '#345e9b' },
           encoding: {
             x: {
