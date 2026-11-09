@@ -28,6 +28,15 @@ export type TrialAssignment = {
   condition: StudyCondition;
 };
 
+export function isValidTrialTuple(
+  trialId: string,
+  scenarioFamily: ScenarioId,
+  taskVariant: TaskVariant,
+  condition: StudyCondition,
+): boolean {
+  return trialId === `${scenarioFamily}-${taskVariant}-${condition}`;
+}
+
 const interactionSchema = z
   .object({
     type: z.enum(['report_select', 'visualization_select']),

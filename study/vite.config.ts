@@ -27,6 +27,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: studyDependencyAliases(path.join(directory, 'node_modules')) },
   define: { __SOURCE_COMMIT__: JSON.stringify(sourceCommit) },
+  build: {
+    rollupOptions: {
+      input: {
+        index: path.resolve(directory, 'index.html'),
+        visualization: path.resolve(directory, 'visualization.html'),
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],

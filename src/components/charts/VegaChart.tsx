@@ -6,17 +6,21 @@ export function VegaChart({
   onSelect,
   onSelectDatum,
   onBrush,
+  onReady,
+  onError,
   ariaLabel,
 }: {
   spec: Record<string, unknown>;
   onSelect?: (id: string) => void;
   onSelectDatum?: (datum: Record<string, unknown>) => void;
   onBrush?: (start: string, end: string) => void;
+  onReady?: () => void;
+  onError?: (error: unknown) => void;
   ariaLabel?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const callbacks = useRef({ onSelect, onSelectDatum, onBrush });
-  callbacks.current = { onSelect, onSelectDatum, onBrush };
+  const callbacks = useRef({ onSelect, onSelectDatum, onBrush, onReady, onError });
+  callbacks.current = { onSelect, onSelectDatum, onBrush, onReady, onError };
   useEffect(() => {
     if (!host.current) return;
     let active = true;
@@ -35,23 +39,22 @@ export function VegaChart({
           else if (datum) callbacks.current.onSelectDatum?.(datum);
         });
         if (callbacks.current.onBrush) {
-          try {
-            result.view.addSignalListener('timeBrush', (_name, value) => {
-              const range = (value as { day?: [number, number] })?.day;
-              if (range?.length === 2) {
-                callbacks.current.onBrush?.(
-                  new Date(range[0]).toISOString().slice(0, 10),
-                  new Date(range[1]).toISOString().slice(0, 10),
-                );
-              }
-            });
-          } catch {
-            /* A chart without a brush has no signal. */
-          }
+          result.view.addSignalListener('timeBrush', (_name, value) => {
+            const range = (value as { day?: [number, number] })?.day;
+            if (range?.length === 2) {
+              callbacks.current.onBrush?.(
+                new Date(range[0]).toISOString().slice(0, 10),
+                new Date(range[1]).toISOString().slice(0, 10),
+              );
+            }
+          });
         }
+        callbacks.current.onReady?.();
       })
       .catch((error) => {
+        if (!active) return;
         if (host.current) host.current.textContent = `Chart unavailable: ${String(error)}`;
+        callbacks.current.onError?.(error);
       });
     return () => {
       active = false;
