@@ -15,6 +15,7 @@ describe('VegaChart readiness', () => {
     const order: string[] = [];
     mocks.embed.mockResolvedValue({
       view: {
+        getState: vi.fn(() => ({ signals: { timeBrush: null } })),
         addEventListener: vi.fn(() => order.push('click')),
         addSignalListener: vi.fn(() => order.push('brush')),
       },
@@ -32,6 +33,7 @@ describe('VegaChart readiness', () => {
     const error = new Error('click listener failed');
     mocks.embed.mockResolvedValue({
       view: {
+        getState: vi.fn(() => ({ signals: {} })),
         addEventListener: vi.fn(() => {
           throw error;
         }),
@@ -43,6 +45,47 @@ describe('VegaChart readiness', () => {
     const onError = vi.fn();
 
     render(<VegaChart spec={{}} onReady={onReady} onError={onError} />);
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(error));
+    expect(onReady).not.toHaveBeenCalled();
+  });
+
+  it('treats an absent brush signal as optional even when onBrush is provided', async () => {
+    const addSignalListener = vi.fn();
+    const onReady = vi.fn();
+    const onError = vi.fn();
+    mocks.embed.mockResolvedValue({
+      view: {
+        getState: vi.fn(() => ({ signals: {} })),
+        addEventListener: vi.fn(),
+        addSignalListener,
+      },
+      finalize: vi.fn(),
+    });
+
+    render(<VegaChart spec={{}} onBrush={() => {}} onReady={onReady} onError={onError} />);
+
+    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
+    expect(addSignalListener).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('reports a failure registering an existing brush signal', async () => {
+    const error = new Error('brush listener failed');
+    const onReady = vi.fn();
+    const onError = vi.fn();
+    mocks.embed.mockResolvedValue({
+      view: {
+        getState: vi.fn(() => ({ signals: { timeBrush: null } })),
+        addEventListener: vi.fn(),
+        addSignalListener: vi.fn(() => {
+          throw error;
+        }),
+      },
+      finalize: vi.fn(),
+    });
+
+    render(<VegaChart spec={{}} onBrush={() => {}} onReady={onReady} onError={onError} />);
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith(error));
     expect(onReady).not.toHaveBeenCalled();

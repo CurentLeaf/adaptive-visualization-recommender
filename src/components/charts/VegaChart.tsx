@@ -39,15 +39,22 @@ export function VegaChart({
           else if (datum) callbacks.current.onSelectDatum?.(datum);
         });
         if (callbacks.current.onBrush) {
-          result.view.addSignalListener('timeBrush', (_name, value) => {
-            const range = (value as { day?: [number, number] })?.day;
-            if (range?.length === 2) {
-              callbacks.current.onBrush?.(
-                new Date(range[0]).toISOString().slice(0, 10),
-                new Date(range[1]).toISOString().slice(0, 10),
-              );
-            }
+          const state = result.view.getState({
+            signals: (name) => name === 'timeBrush',
+            data: () => false,
+            recurse: false,
           });
+          if (Object.prototype.hasOwnProperty.call(state.signals, 'timeBrush')) {
+            result.view.addSignalListener('timeBrush', (_name, value) => {
+              const range = (value as { day?: [number, number] })?.day;
+              if (range?.length === 2) {
+                callbacks.current.onBrush?.(
+                  new Date(range[0]).toISOString().slice(0, 10),
+                  new Date(range[1]).toISOString().slice(0, 10),
+                );
+              }
+            });
+          }
         }
         callbacks.current.onReady?.();
       })
